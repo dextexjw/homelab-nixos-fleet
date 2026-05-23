@@ -327,16 +327,22 @@ in
 
     systemd.services = {
       jellyfin.requires = [ "${utils.escapeSystemdPath mediaRoot}.mount" ];
+      jellyfin.after = [ "${utils.escapeSystemdPath mediaRoot}.mount" ];
       radarr.requires = [ "${utils.escapeSystemdPath mediaRoot}.mount" ];
+      radarr.after = [ "${utils.escapeSystemdPath mediaRoot}.mount" ];
       sonarr.requires = [ "${utils.escapeSystemdPath mediaRoot}.mount" ];
+      sonarr.after = [ "${utils.escapeSystemdPath mediaRoot}.mount" ];
       bazarr.requires = [ "${utils.escapeSystemdPath mediaRoot}.mount" ];
+      bazarr.after = [ "${utils.escapeSystemdPath mediaRoot}.mount" ];
       qbittorrent.requires = [ "${utils.escapeSystemdPath mediaRoot}.mount" ];
+      qbittorrent.after = [ "${utils.escapeSystemdPath mediaRoot}.mount" ];
       sabnzbd.requires = [ "${utils.escapeSystemdPath mediaRoot}.mount" ];
+      sabnzbd.after = [ "${utils.escapeSystemdPath mediaRoot}.mount" ];
 
       sabnzbd = {
         preStart = ''
           if [ ! -f '${appdata}/sabnzbd/sabnzbd.ini' ]; then
-            install -m 0640 -o sabnzbd -g media ${sabnzbdConfig} '${appdata}/sabnzbd/sabnzbd.ini'
+            install -m 0640 ${sabnzbdConfig} '${appdata}/sabnzbd/sabnzbd.ini'
           fi
         '';
         serviceConfig.StateDirectory = mkForce "";

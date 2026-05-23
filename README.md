@@ -299,6 +299,7 @@ colmena build --on media-vm
 
 ```sh
 colmena apply --on media-vm switch
+colmena apply --on media-vm --build-on-target switch
 ```
 
 ## media-vm day-2 deploy flow

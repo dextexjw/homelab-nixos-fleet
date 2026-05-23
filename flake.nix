@@ -24,6 +24,21 @@
       # Import host definitions from single source of truth
       hosts = import ./hosts.nix;
 
+      ephemeralSshOptions = [
+        "-o"
+        "CheckHostIP=no"
+        "-o"
+        "GlobalKnownHostsFile=/dev/null"
+        "-o"
+        "LogLevel=ERROR"
+        "-o"
+        "StrictHostKeyChecking=no"
+        "-o"
+        "UpdateHostKeys=no"
+        "-o"
+        "UserKnownHostsFile=/dev/null"
+      ];
+
       # For scaling up your homelab, you'd likely want automated host generation:
       # mkHost = name: hostConfig: {
       #   deployment = {
@@ -75,6 +90,7 @@
 
         gateway-vm = {
           deployment = {
+            sshOptions = ephemeralSshOptions;
             targetHost = hosts.gateway-vm.ip;
             targetUser = hosts.gateway-vm.user;
             tags = hosts.gateway-vm.tags;
@@ -87,6 +103,7 @@
 
         media-vm = {
           deployment = {
+            sshOptions = ephemeralSshOptions;
             targetHost = hosts.media-vm.ip;
             targetUser = hosts.media-vm.user;
             tags = hosts.media-vm.tags;
