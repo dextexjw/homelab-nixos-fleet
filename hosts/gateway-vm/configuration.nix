@@ -108,12 +108,12 @@ in
   # ============================================================================
 
   boot.loader.grub.enable = true;
-  boot.loader.grub.device = "/dev/vda";
+  boot.loader.grub.device = "/dev/sda";
   boot.loader.grub.useOSProber = true;
 
   # ============================================================================
   # SYSTEM
   # ============================================================================
 
-  system.stateVersion = "25.05";
+  system.stateVersion = "25.11";
 }
