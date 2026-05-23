@@ -54,7 +54,10 @@ in
   # ============================================================================
 
   users.users.${host.user} = {
-    extraGroups = [ "media" ];
+    extraGroups = [
+      "media"
+      "systemd-journal"
+    ];
     hashedPasswordFile = lib.mkIf secretsEnabled config.sops.secrets.admin-password-hash.path;
   };
 
