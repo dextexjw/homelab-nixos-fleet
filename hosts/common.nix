@@ -36,16 +36,16 @@
   # USER MANAGEMENT
   # ============================================================================
 
-  users.users.logan = {
+  users.users.smoke = {
     isNormalUser = true;
-    description = "Logan Donley";
+    description = "Smoke";
     extraGroups = [
       "networkmanager"
       "wheel"
     ];
 
     openssh.authorizedKeys.keys = [
-      "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMzLokg14/USYIlrHwqWavA3DVPiLk+l9PlqwSi3l8Pa logan@franklin"
+      "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMzLokg14/USYIlrHwqWavA3DVPiLk+l9PlqwSi3l8Pa smoke@franklin"
     ];
   };
 
