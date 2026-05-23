@@ -65,19 +65,19 @@ The shell includes Colmena plus tools used by this repo such as `sops`, `age`, a
 Deploy everything:
 
 ```sh
-colmena apply
+colmena apply switch
 ```
 
 Deploy one server:
 
 ```sh
-colmena apply --on servername
+colmena apply --on servername switch
 ```
 
 Deploy servers with a tag:
 
 ```sh
-colmena apply --on @web
+colmena apply --on @web switch
 ```
 
 Run commands on servers:
@@ -89,7 +89,7 @@ colmena exec --on servername -- systemctl status nginx
 Build without deploying:
 
 ```sh
-colmena build
+colmena build --on servername
 ```
 
 For `media-vm`, use `colmena apply --on media-vm switch`.
