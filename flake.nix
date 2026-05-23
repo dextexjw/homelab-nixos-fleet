@@ -58,39 +58,27 @@
         # HOST DEFINITIONS - Individual server configurations
         # ========================================================================
 
-        alpha = {
+        gateway-vm = {
           deployment = {
-            targetHost = hosts.alpha.ip;
-            targetUser = hosts.alpha.user;
-            tags = hosts.alpha.tags;
+            targetHost = hosts.gateway-vm.ip;
+            targetUser = hosts.gateway-vm.user;
+            tags = hosts.gateway-vm.tags;
           };
 
           imports = [
-            ./hosts/alpha/configuration.nix
+            ./hosts/gateway-vm/configuration.nix
           ];
         };
 
-        bravo = {
+        media-vm = {
           deployment = {
-            targetHost = hosts.bravo.ip;
-            targetUser = hosts.bravo.user;
-            tags = hosts.bravo.tags;
+            targetHost = hosts.media-vm.ip;
+            targetUser = hosts.media-vm.user;
+            tags = hosts.media-vm.tags;
           };
 
           imports = [
-            ./hosts/bravo/configuration.nix
-          ];
-        };
-
-        charlie = {
-          deployment = {
-            targetHost = hosts.charlie.ip;
-            targetUser = hosts.charlie.user;
-            tags = hosts.charlie.tags;
-          };
-
-          imports = [
-            ./hosts/charlie/configuration.nix
+            ./hosts/media-vm/configuration.nix
           ];
         };
       };

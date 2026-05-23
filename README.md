@@ -24,7 +24,7 @@ The `modules/` directory contains reusable pieces for different services. Want t
 
 All the servers import `hosts/common.nix` which sets up SSH keys, basic security, and monitoring. Individual servers add whatever services they need on top of that.
 
-The reverse proxy on the alpha server routes traffic to services running on different machines. Self-signed certificates handle TLS so you don't get browser warnings.
+The reverse proxy on the gateway-vm server routes traffic to services running on different machines. Self-signed certificates handle TLS so you don't get browser warnings.
 
 ## Commands
 
@@ -56,7 +56,7 @@ As a quick hack, add the reverse proxy domains to your `/etc/hosts` file so they
 
 This setup assumes you're semi-comfortable with NixOS. If you're new to NixOS and flakes, check out the book: https://nixos-and-flakes.thiscute.world/
 
-The monitoring stack will start collecting metrics immediately. Grafana runs on port 3000 of your alpha server (or whatever you call your main one).
+The monitoring stack will start collecting metrics immediately. Grafana runs on port 3000 of your gateway-vm server (or whatever you call your main one).
 
 
 ## Resources

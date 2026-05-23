@@ -1,5 +1,9 @@
 { config, pkgs, ... }:
 
+let
+  hosts = import ../../hosts.nix;
+in
+
 {
   # ============================================================================
   # IMPORTS
@@ -8,47 +12,31 @@
   imports = [
     ../common.nix
     ./hardware-configuration.nix
-    ../../modules/apps/freshrss.nix
+    ../../modules/dev/gitea.nix
   ];
 
   # ============================================================================
   # HOST IDENTIFICATION
   # ============================================================================
 
-  networking.hostName = "charlie";
-  users.motd = "CHARLIE is calling";
+  networking.hostName = "media-vm";
+  users.motd = "You've found your way to the MEDIA-VM server";
 
   # ============================================================================
   # SERVICES
   # ============================================================================
 
-  fleet.apps.freshrss = {
+  fleet.dev.gitea = {
     enable = true;
-    port = 8080;
-    timezone = "America/New_York";
+    domain = hosts.media-vm.ip;
+    appName = "Fleet Git Repository";
   };
-
-  virtualisation.oci-containers.containers = { };
 
   # ============================================================================
   # NETWORKING & FIREWALL
   # ============================================================================
 
-  networking.firewall.allowedTCPPorts = [ ];
-
-  # ============================================================================
-  # VIRTUALIZATION
-  # ============================================================================
-
-  virtualisation = {
-    containers.enable = true;
-    podman = {
-      enable = true;
-      dockerCompat = true;
-      defaultNetwork.settings.dns_enabled = true;
-    };
-  };
-  virtualisation.oci-containers.backend = "podman";
+  networking.firewall.allowedTCPPorts = [];
 
   # ============================================================================
   # BOOTLOADER

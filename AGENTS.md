@@ -11,8 +11,8 @@ Fleet is managed as a Nix flake and deployed with Colmena, so changes should alw
 ## Build, Test, and Development Commands
 - `nix develop` brings up the shell with Colmena installed; run it before modifying modules.
 - `nix flake check` ensures all modules evaluate and option contracts stay valid.
-- `colmena apply --on alpha --dry-run switch` validates the `alpha` host without touching state; drop `--dry-run` to deploy.
-- `colmena apply --on bravo switch` publishes Git services; prefer tagging multiple hosts via the `hosts.nix` tags when coordinating changes.
+- `colmena apply --on gateway-vm --dry-run switch` validates the `gateway-vm` host without touching state; drop `--dry-run` to deploy.
+- `colmena apply --on media-vm switch` publishes Git services; prefer tagging multiple hosts via the `hosts.nix` tags when coordinating changes.
 
 ## Coding Style & Naming Conventions
 - Use two-space indentation and keep attribute sets alphabetised where practical.

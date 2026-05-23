@@ -1,9 +1,9 @@
 Step 1: Download the CA Certificate
 
-First, get the CA certificate from alpha:
+First, get the CA certificate from gateway-vm:
 
-# Download the CA certificate from alpha
-scp logan@192.168.122.55:/var/lib/fleet-ca/ca-cert.pem ~/Downloads/fleet-ca.pem
+# Download the CA certificate from gateway-vm
+scp logan@10.2.20.112:/var/lib/fleet-ca/ca-cert.pem ~/Downloads/fleet-ca.pem
 
 Step 2: Install in Your Browser/OS
 

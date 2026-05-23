@@ -23,8 +23,8 @@ in
   # HOST IDENTIFICATION
   # ============================================================================
 
-  networking.hostName = "alpha";
-  users.motd = "Welcome brave warrior to the ALPHA server";
+  networking.hostName = "gateway-vm";
+  users.motd = "Welcome brave warrior to the GATEWAY-VM server";
 
   # ============================================================================
   # SERVICES
@@ -35,15 +35,14 @@ in
   fleet.monitoring.prometheus = {
     enable = true;
     nodeExporterTargets = [
-      "${hosts.alpha.ip}:9100"
-      "${hosts.bravo.ip}:9100"
-      "${hosts.charlie.ip}:9100"
+      "${hosts.gateway-vm.ip}:9100"
+      "${hosts.media-vm.ip}:9100"
     ];
   };
 
   fleet.monitoring.grafana = {
     enable = true;
-    domain = hosts.alpha.ip;
+    domain = hosts.gateway-vm.ip;
     prometheusUrl = "http://localhost:9090";
   };
 
@@ -59,7 +58,6 @@ in
       "grafana.local"
       "prometheus.local"
       "git.local"
-      "rss.local"
     ];
   };
 
@@ -72,22 +70,22 @@ in
     enableTLS = true;
     routes = {
       "jenkins.local" = {
-        target = hosts.alpha.ip;
+        target = hosts.gateway-vm.ip;
         port = 8080;
         description = "Jenkins CI/CD";
       };
       "grafana.local" = {
-        target = hosts.alpha.ip;
+        target = hosts.gateway-vm.ip;
         port = 3000;
         description = "Grafana monitoring dashboard";
       };
       "prometheus.local" = {
-        target = hosts.alpha.ip;
+        target = hosts.gateway-vm.ip;
         port = 9090;
         description = "Prometheus metrics";
       };
       "git.local" = {
-        target = hosts.bravo.ip;
+        target = hosts.media-vm.ip;
         port = 3000;
         description = "Gitea repository hosting";
         extraConfig = ''
@@ -95,11 +93,6 @@ in
           proxy_read_timeout 300;
           proxy_send_timeout 300;
         '';
-      };
-      "rss.local" = {
-        target = hosts.charlie.ip;
-        port = 8080;
-        description = "FreshRSS feed aggregator";
       };
     };
   };

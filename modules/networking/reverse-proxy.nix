@@ -89,7 +89,7 @@ in
       description = "Hostname to backend mapping";
       example = {
         "jenkins.fleet.local" = {
-          target = "192.168.122.55";
+          target = "10.2.20.112";
           port = 8888;
           description = "Jenkins CI/CD";
         };
