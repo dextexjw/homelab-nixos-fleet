@@ -22,6 +22,16 @@ let
       config.sops.secrets.restic-password.path
     else
       "/run/secrets/restic-password";
+  qbittorrentWebuiPasswordFile =
+    if cfg.secrets.enable then
+      config.sops.secrets.qbittorrent-webui-password.path
+    else
+      "/run/secrets/qbittorrent-webui-password";
+  qbittorrentWebuiUsernameFile =
+    if cfg.secrets.enable then
+      config.sops.secrets.qbittorrent-webui-username.path
+    else
+      "/run/secrets/qbittorrent-webui-username";
   systemdMountOptions = filter (
     option:
     option != "_netdev"
@@ -51,6 +61,71 @@ let
     port = ${toString cfg.ports.sabnzbd}
     download_dir = ${cfg.downloads.incomplete}
     complete_dir = ${cfg.downloads.usenet}
+  '';
+
+  qbittorrentConfigScript = pkgs.writeShellScript "configure-qbittorrent" ''
+    set -euo pipefail
+
+    exec ${pkgs.python3}/bin/python3 - <<'PY'
+    import base64
+    import hashlib
+    import os
+    import pathlib
+    import pwd
+    import grp
+    import tempfile
+
+    config_dir = pathlib.Path(${builtins.toJSON "${appdata}/qbittorrent/qBittorrent/config"})
+    config_file = config_dir / "qBittorrent.conf"
+    username_file = pathlib.Path(${builtins.toJSON qbittorrentWebuiUsernameFile})
+    password_file = pathlib.Path(${builtins.toJSON qbittorrentWebuiPasswordFile})
+
+    def read_secret(path, name):
+        value = path.read_text(encoding="utf-8").rstrip("\n")
+        if not value:
+            raise RuntimeError(f"qBittorrent WebUI {name} secret is empty: {path}")
+        if "\n" in value or "\r" in value:
+            raise RuntimeError(f"qBittorrent WebUI {name} secret must be a single line: {path}")
+        return value
+
+    username = read_secret(username_file, "username")
+    password = read_secret(password_file, "password")
+
+    salt = os.urandom(16)
+    password_hash = hashlib.pbkdf2_hmac("sha512", password.encode("utf-8"), salt, 100000)
+    encoded_salt = base64.b64encode(salt).decode("ascii")
+    encoded_hash = base64.b64encode(password_hash).decode("ascii")
+
+    content = f"""[LegalNotice]
+    Accepted=true
+
+    [Preferences]
+    Downloads\\SavePath=${cfg.downloads.torrents}
+    Downloads\\TempPath=${cfg.downloads.incomplete}
+    Downloads\\TempPathEnabled=true
+    WebUI\\Address=*
+    WebUI\\Password_PBKDF2="@ByteArray({encoded_salt}:{encoded_hash})"
+    WebUI\\Port=${toString cfg.ports.qbittorrent}
+    WebUI\\Username={username}
+    """
+
+    config_dir.mkdir(parents=True, exist_ok=True)
+    uid = pwd.getpwnam("qbittorrent").pw_uid
+    gid = grp.getgrnam("media").gr_gid
+
+    fd, tmp_name = tempfile.mkstemp(prefix=".qBittorrent.conf.", dir=config_dir)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as tmp:
+            tmp.write(content)
+        os.chown(tmp_name, uid, gid)
+        os.chmod(tmp_name, 0o600)
+        os.replace(tmp_name, config_file)
+    finally:
+        try:
+            os.unlink(tmp_name)
+        except FileNotFoundError:
+            pass
+    PY
   '';
 in
 {
@@ -324,20 +399,6 @@ in
       group = "media";
       profileDir = "${appdata}/qbittorrent";
       webuiPort = cfg.ports.qbittorrent;
-      serverConfig = {
-        LegalNotice.Accepted = true;
-        Preferences = {
-          Downloads = {
-            SavePath = cfg.downloads.torrents;
-            TempPath = cfg.downloads.incomplete;
-            TempPathEnabled = true;
-          };
-          WebUI = {
-            Address = "*";
-            Port = cfg.ports.qbittorrent;
-          };
-        };
-      };
     };
 
     services.sabnzbd = {
@@ -374,6 +435,8 @@ in
       bazarr.after = [ "${utils.escapeSystemdPath mediaRoot}.mount" ];
       qbittorrent.requires = [ "${utils.escapeSystemdPath mediaRoot}.mount" ];
       qbittorrent.after = [ "${utils.escapeSystemdPath mediaRoot}.mount" ];
+      qbittorrent.serviceConfig.ExecStartPre = [ "+${qbittorrentConfigScript}" ];
+      qbittorrent.serviceConfig.UMask = "0077";
       sabnzbd.requires = [ "${utils.escapeSystemdPath mediaRoot}.mount" ];
       sabnzbd.after = [ "${utils.escapeSystemdPath mediaRoot}.mount" ];
 

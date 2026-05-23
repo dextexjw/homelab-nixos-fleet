@@ -176,7 +176,8 @@ Put the real values in `secrets/secrets.yaml`, then encrypt it with SOPS before 
 - `admin-password-hash`
 - `smb-credentials`
 - `restic-password`
-- optional `qbittorrent-webui-password`
+- `qbittorrent-webui-username`
+- `qbittorrent-webui-password`
 
 The committed `secrets/secrets.yaml` is an encrypted placeholder until you replace it with your real encrypted values. Keep it encrypted before committing.
 
@@ -190,7 +191,10 @@ ssh-keyscan -t ed25519 10.2.20.113 2>/dev/null | awk '{print $2 " " $3}'
 
 Add that `ssh-ed25519 ...` recipient to `.sops.yaml`, then rekey `secrets/secrets.yaml`.
 
-Note: `qbittorrent-webui-password` is kept in SOPS for future use or manual reference. The current Nix module sets qBittorrent paths and port, but it does not yet inject that password into qBittorrent's generated config.
+Note: qBittorrent reads `qbittorrent-webui-username` and `qbittorrent-webui-password`
+from SOPS during service startup. The password is hashed on `media-vm` into
+qBittorrent's `WebUI\Password_PBKDF2` config format, so the plaintext value does
+not enter the Nix store. Changing either secret restarts `qbittorrent.service`.
 
 ## SOPS secrets workflow
 

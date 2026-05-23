@@ -42,8 +42,8 @@ in
       admin-password-hash = {
         neededForUsers = true;
       };
-      qbittorrent-webui-password = { };
-      qbittorrent-webui-username = { };
+      qbittorrent-webui-password.restartUnits = [ "qbittorrent.service" ];
+      qbittorrent-webui-username.restartUnits = [ "qbittorrent.service" ];
       restic-password = { };
       smb-credentials = { };
     };
