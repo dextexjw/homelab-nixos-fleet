@@ -144,7 +144,7 @@ in
 
       backupDevice = mkOption {
         type = types.str;
-        default = "//10.2.20.10/backups";
+        default = "//nas.home.arpa/backups";
         description = "SMB device for the backup share.";
       };
 
@@ -238,6 +238,8 @@ in
         "credentials=${smbCredentialsFile}"
         "dir_mode=0750"
         "file_mode=0640"
+        "forcegid"
+        "gid=media"
       ];
     };
 
@@ -247,6 +249,7 @@ in
 
     services.jellyfin = {
       enable = true;
+      openFirewall = true;
       user = "jellyfin";
       group = "media";
       dataDir = "${appdata}/jellyfin";
@@ -444,6 +447,9 @@ in
       create a non-admin user named kids, grant only the Kids Movies and Kids TV
       Shows libraries, disable deletion and downloads, then optionally use
       parental controls or a kids-approved tag for an extra guardrail.
+
+      First-run setup is available at http://10.2.20.113:8096/web/index.html#!/wizardstart.html.
+      Complete it in a browser before connecting native Jellyfin clients.
     '';
   };
 }

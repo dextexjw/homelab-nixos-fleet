@@ -53,8 +53,10 @@ in
   # USER MANAGEMENT
   # ============================================================================
 
-  users.users.${host.user}.hashedPasswordFile =
-    lib.mkIf secretsEnabled config.sops.secrets.admin-password-hash.path;
+  users.users.${host.user} = {
+    extraGroups = [ "media" ];
+    hashedPasswordFile = lib.mkIf secretsEnabled config.sops.secrets.admin-password-hash.path;
+  };
 
   # ============================================================================
   # SERVICES
@@ -64,7 +66,7 @@ in
     enable = true;
     secrets.enable = secretsEnabled;
     smb = {
-      backupDevice = "//10.2.20.10/backups";
+      backupDevice = "//nas.home.arpa/backups";
       mediaDevice = "//nas.home.arpa/media";
     };
   };

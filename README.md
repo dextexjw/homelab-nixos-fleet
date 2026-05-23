@@ -115,7 +115,7 @@ These values are already represented in `hosts.nix` and `hosts/media-vm/configur
 - VM CPU cores: `4`
 - Media SMB device: `//nas.home.arpa/media`
 - Media mount: `/mnt/media`
-- Backup SMB device: `//10.2.20.10/backups`
+- Backup SMB device: `//nas.home.arpa/backups`
 - Backup mount: `/mnt/backups`
 
 ## media-vm services
