@@ -653,7 +653,11 @@ in
       media-vm restore model
       ======================
 
-      Restore /srv/appsdata after reinstalling this NixOS host, then redeploy.
+      Restore /srv/appsdata after reinstalling this NixOS host, before first
+      use of Jellyfin, ARR apps, qBittorrent, SABnzbd, or Jellyseerr. The first
+      activation creates /run/secrets/restic-password, /mnt/backups, Restic,
+      users/groups, and service units needed for restore.
+
       Media files under /mnt/media are mounted from SMB and are not included in
       appsdata-backup.service.
 
@@ -671,6 +675,16 @@ in
 
       Restore test target:
         /var/tmp/appsdata-restore-check
+
+      Bootstrap restore outline:
+        1. Deploy media-vm once.
+        2. Before opening app web UIs, run this from the repo development shell:
+             scripts/restore-media-appdata.sh
+        3. The script stops media services, mounts /mnt/backups, checks for
+           media-vm/appsdata snapshots, restores the latest snapshot if found,
+           reapplies tmpfiles, and restarts media services.
+        4. If no matching snapshot exists, the script starts media services and
+           appsdata-backup.timer, then continues as a fresh system.
 
       Full restore outline:
         1. Stop appsdata-backup.timer and media services.

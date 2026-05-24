@@ -25,7 +25,7 @@ The reverse proxy on the gateway-vm server routes traffic to services running on
 - `modules/media/stack.nix` defines the `media-vm` media stack.
 - `secrets/secrets.yaml` is the real SOPS-encrypted secrets file.
 - `secrets/example-secrets.yaml` documents the expected secrets shape.
-- `scripts/` contains maintenance helpers, including `scripts/test-media-backup.sh` for repeatable `media-vm` backup and restore validation. The documented deployment workflow still uses direct Colmena commands from the development shell.
+- `scripts/` contains maintenance helpers, including `scripts/restore-media-appdata.sh` for bootstrap appdata restore and `scripts/test-media-backup.sh` for repeatable `media-vm` backup and restore validation. The documented deployment workflow still uses direct Colmena commands from the development shell.
 
 ## Getting started
 
@@ -335,19 +335,23 @@ Optional fallback: if the local machine should not or cannot build the
 colmena apply --on media-vm switch --build-on-target
 ```
 
-8. Confirm the hostname settled:
+8. Before opening any media app web UI, restore existing `/srv/appsdata` if a matching backup exists:
+
+```sh
+scripts/restore-media-appdata.sh
+```
+
+The script runs from the development shell, targets `media-vm` through Colmena, restores the latest matching Restic appdata snapshot if one exists, and otherwise continues as a fresh system. For the full restore model and manual commands, see [Restore /srv/appsdata](#restore-srvappsdata).
+
+9. Confirm the hostname settled:
 
 ```sh
 ssh smoke@10.2.20.113 'hostnamectl --static; hostnamectl --transient'
 ```
 
-The static hostname should be `media-vm`. If the transient hostname still shows the installer/bootstrap name, either reboot once or set it explicitly:
+Both values should report `media-vm`.
 
-```sh
-ssh smoke@10.2.20.113 'sudo hostnamectl --transient hostname media-vm'
-```
-
-9. Validate backup and restore:
+10. Validate backup and restore:
 
 ```sh
 scripts/test-media-backup.sh
@@ -484,7 +488,7 @@ journalctl -u appsdata-restore-check.service
 
 ## Restore /srv/appsdata
 
-This is the destructive full restore procedure. Use `appsdata-restore-check.service` for routine validation because it restores into `/var/tmp/appsdata-restore-check` and does not overwrite `/srv/appsdata`.
+This is the canonical destructive full restore procedure. During bootstrap, run it immediately after the first `media-vm` deployment and before opening any app web UI. Use `appsdata-restore-check.service` for routine validation because it restores into `/var/tmp/appsdata-restore-check` and does not overwrite `/srv/appsdata`.
 
 1. Stop the backup timer and media services:
 
