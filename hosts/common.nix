@@ -21,7 +21,10 @@
         "flakes"
       ];
       auto-optimise-store = true;
-      trusted-users = [ "@wheel" ];
+      trusted-users = [
+        "@wheel"
+        "smoke"
+      ];
     };
     gc = {
       automatic = true;
