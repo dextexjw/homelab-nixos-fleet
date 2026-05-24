@@ -261,6 +261,21 @@ ssh smoke@10.2.20.113
 
 5. Add the VM SSH host recipient to `.sops.yaml`, then rekey secrets.
 
+Fetch the VM's `/etc/ssh/ssh_host_ed25519_key` public key and convert it to an
+age recipient:
+
+```sh
+ssh smoke@10.2.20.113 'sudo ssh-keygen -y -f /etc/ssh/ssh_host_ed25519_key' | ssh-to-age
+```
+
+Add the printed `age1...` recipient to `.sops.yaml`, then update and verify the
+encrypted secrets:
+
+```sh
+sops updatekeys secrets/secrets.yaml
+sops --decrypt secrets/secrets.yaml >/dev/null && echo ok
+```
+
 6. Deploy the host.
 
 ```sh

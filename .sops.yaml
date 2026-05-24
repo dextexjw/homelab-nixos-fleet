@@ -6,9 +6,6 @@ creation_rules:
     encrypted_regex: "^(admin-password-hash|restic-password|smb-credentials|qbittorrent-webui-username|qbittorrent-webui-password)$"
     # Age and SSH recipients for encryption. Folded for readability but preserved as a single value.
     age: >
-      ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIATd/kn93HeAqaT5e8uW68n/JoWBesQkyruVNLsG3NDc
-      khalid,age1kklc5kan4mgat2q7xpp6sl7luy270qpdk36nvj9y3nfah97mq4vsvpv34k,
-      age1s5d7uhp0cqnr99tqffz9lyusd639kv35jpyx4cpf9xypr7yxcvas7kz00m,
-      age1et77hh4v992e993em7u0s0m8jzyyv9qfkyhl5xq2te3c59j2kvfsvwy2h2,
-      age194xds2c0ax7nkpwaw50uyeyr9m4znxqfja5gdypnmsu3mr6k6dps5pf87e,
-      age1aftkyfnfva6z3zvm725hj7rmqqpfw764hgsks2wzjne2mhdsdcwst398mf
+      ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIATd/kn93HeAqaT5e8uW68n/JoWBesQkyruVNLsG3NDc khalid,
+      age1aftkyfnfva6z3zvm725hj7rmqqpfw764hgsks2wzjne2mhdsdcwst398mf,
+      age1e3gnv2pcwy8zhtprvqw582qtq65myw2aa63tzks4gx9u35gjy92qf4ku4v
