@@ -305,14 +305,22 @@ colmena build --on media-vm
 
 5. Confirm SSH for `smoke@10.2.20.113` works.
 
-6. Add the VM's configured SOPS key to `.sops.yaml`, then rekey the secrets file:
+6. Capture the VM's configured SOPS public key:
 
 ```sh
 ssh smoke@10.2.20.113 'sudo ssh-keygen -y -f /etc/ssh/ssh_host_ed25519_key' | ssh-to-age
-sops updatekeys secrets/secrets.yaml
 ```
 
-Use the printed `age1...` public key as a recipient in `.sops.yaml`. This must be derived from `/etc/ssh/ssh_host_ed25519_key`, because that is the private key `media-vm` uses to decrypt SOPS secrets during activation.
+The command prints an `age1...` public recipient. This value is not a secret. If that exact recipient is already listed in `.sops.yaml`, no edit is needed. If it is missing, add it to the comma-separated `age:` recipient list in `.sops.yaml`.
+
+After confirming the recipient is present, rekey and verify the secrets file:
+
+```sh
+sops updatekeys secrets/secrets.yaml
+sops --decrypt secrets/secrets.yaml >/dev/null && echo ok
+```
+
+This recipient must be derived from `/etc/ssh/ssh_host_ed25519_key`, because that is the private key `media-vm` uses to decrypt SOPS secrets during activation. Do not copy or commit the private key itself.
 
 7. Deploy `media-vm`:
 
