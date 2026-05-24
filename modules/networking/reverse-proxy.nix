@@ -88,7 +88,7 @@ in
       default = {};
       description = "Hostname to backend mapping";
       example = {
-        "jenkins.fleet.local" = {
+        "jenkins.home.arpa" = {
           target = "10.2.20.112";
           port = 8888;
           description = "Jenkins CI/CD";
