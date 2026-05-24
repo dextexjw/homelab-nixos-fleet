@@ -6,7 +6,7 @@ HOST="media-vm"
 REPOSITORY="/mnt/backups/restic/appdata/media-stack-vm"
 SOURCE="/srv/appsdata"
 TAG="appsdata"
-SERVICES="jellyfin radarr sonarr prowlarr bazarr qbittorrent sabnzbd jellyseerr flaresolverr"
+SERVICES="jellyfin audiobookshelf kavita radarr sonarr prowlarr bazarr qbittorrent sabnzbd jellyseerr flaresolverr"
 
 die() {
   printf 'error: %s\n' "$*" >&2

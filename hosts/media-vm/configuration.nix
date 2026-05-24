@@ -29,7 +29,7 @@ in
 
   networking.hostName = "media-vm";
   networking.domain = host.domain;
-  users.motd = "media-vm: Jellyfin, ARR stack, downloads, and appdata backups";
+  users.motd = "media-vm: Jellyfin, Audiobookshelf, Kavita, ARR stack, downloads, and appdata backups";
 
   # ============================================================================
   # SECRETS

@@ -22,6 +22,13 @@ let
       config.sops.secrets.restic-password.path
     else
       "/run/secrets/restic-password";
+  audiobookshelfExecStart = concatStringsSep " " [
+    "${pkgs.audiobookshelf}/bin/audiobookshelf"
+    "--host 0.0.0.0"
+    "--port ${toString cfg.ports.audiobookshelf}"
+    "--config ${appdata}/audiobookshelf/config"
+    "--metadata ${appdata}/audiobookshelf/metadata"
+  ];
   qbittorrentWebuiPasswordFile =
     if cfg.secrets.enable then
       config.sops.secrets.qbittorrent-webui-password.path
@@ -42,6 +49,9 @@ let
 
   appsdataDirs = [
     "${appdata}"
+    "${appdata}/audiobookshelf"
+    "${appdata}/audiobookshelf/config"
+    "${appdata}/audiobookshelf/metadata"
     "${appdata}/bazarr"
     "${appdata}/flaresolverr"
     "${appdata}/jellyfin"
@@ -186,9 +196,11 @@ in
     ports = mkOption {
       type = types.attrsOf types.port;
       default = {
+        audiobookshelf = 8000;
         bazarr = 6767;
         jellyfin = 8096;
         jellyseerr = 5055;
+        kavita = 5000;
         prowlarr = 9696;
         qbittorrent = 8080;
         radarr = 7878;
@@ -286,6 +298,8 @@ in
       home = "${appdata}/jellyseerr";
     };
 
+    users.users.kavita.extraGroups = [ "media" ];
+
     systemd.tmpfiles.rules = map (path: "d '${path}' 0770 root media - -") appsdataDirs;
 
     # --------------------------------------------------------------------------
@@ -369,6 +383,25 @@ in
       logDir = "${appdata}/jellyfin/log";
     };
 
+    services.audiobookshelf = {
+      enable = true;
+      user = "audiobookshelf";
+      group = "media";
+      dataDir = "audiobookshelf";
+      host = "0.0.0.0";
+      port = cfg.ports.audiobookshelf;
+    };
+
+    services.kavita = {
+      enable = true;
+      dataDir = "${appdata}/kavita";
+      tokenKeyFile = "${appdata}/kavita/config/token.key";
+      settings = {
+        IpAddresses = "0.0.0.0";
+        Port = cfg.ports.kavita;
+      };
+    };
+
     services.radarr = {
       enable = true;
       user = "radarr";
@@ -430,6 +463,51 @@ in
       jellyfin.after = [ "${utils.escapeSystemdPath mediaRoot}.mount" ];
       jellyfin.environment = mkIf (cfg.jellyfin.publishedServerUrl != null) {
         JELLYFIN_PublishedServerUrl = cfg.jellyfin.publishedServerUrl;
+      };
+      audiobookshelf.requires = [ "${utils.escapeSystemdPath mediaRoot}.mount" ];
+      audiobookshelf.after = [ "${utils.escapeSystemdPath mediaRoot}.mount" ];
+      audiobookshelf.serviceConfig = {
+        ExecStart = mkForce audiobookshelfExecStart;
+        StateDirectory = mkForce "";
+        WorkingDirectory = mkForce "${appdata}/audiobookshelf";
+      };
+      kavita.requires = [
+        "kavita-token-key.service"
+        "${utils.escapeSystemdPath mediaRoot}.mount"
+      ];
+      kavita.after = [
+        "kavita-token-key.service"
+        "${utils.escapeSystemdPath mediaRoot}.mount"
+      ];
+      kavita-token-key = {
+        description = "Create Kavita token key";
+        before = [ "kavita.service" ];
+        path = [ pkgs.coreutils ];
+        serviceConfig = {
+          Type = "oneshot";
+          User = "root";
+          Group = "root";
+          RemainAfterExit = true;
+        };
+        script = ''
+          set -euo pipefail
+
+          token_file='${appdata}/kavita/config/token.key'
+          install -d -m 0750 -o kavita -g kavita "$(dirname "$token_file")"
+
+          if [ ! -s "$token_file" ]; then
+            tmp="$(mktemp "''${token_file}.XXXXXX")"
+            trap 'rm -f "$tmp"' EXIT
+            head -c 64 /dev/urandom | base64 --wrap=0 > "$tmp"
+            chown kavita:kavita "$tmp"
+            chmod 0600 "$tmp"
+            mv "$tmp" "$token_file"
+            trap - EXIT
+          fi
+
+          chown kavita:kavita "$token_file"
+          chmod 0600 "$token_file"
+        '';
       };
       radarr.requires = [ "${utils.escapeSystemdPath mediaRoot}.mount" ];
       radarr.after = [ "${utils.escapeSystemdPath mediaRoot}.mount" ];
@@ -635,9 +713,11 @@ in
     # --------------------------------------------------------------------------
 
     networking.firewall.allowedTCPPorts = [
+      cfg.ports.audiobookshelf
       cfg.ports.bazarr
       cfg.ports.jellyfin
       cfg.ports.jellyseerr
+      cfg.ports.kavita
       cfg.ports.prowlarr
       cfg.ports.qbittorrent
       cfg.ports.radarr
@@ -654,9 +734,9 @@ in
       ======================
 
       Restore /srv/appsdata after reinstalling this NixOS host, before first
-      use of Jellyfin, ARR apps, qBittorrent, SABnzbd, or Jellyseerr. The first
-      activation creates /run/secrets/restic-password, /mnt/backups, Restic,
-      users/groups, and service units needed for restore.
+      use of Jellyfin, Audiobookshelf, Kavita, ARR apps, qBittorrent, SABnzbd,
+      or Jellyseerr. The first activation creates /run/secrets/restic-password,
+      /mnt/backups, Restic, users/groups, and service units needed for restore.
 
       Media files under /mnt/media are mounted from SMB and are not included in
       appsdata-backup.service.
@@ -700,6 +780,8 @@ in
 
       First-run setup is available at http://10.2.20.113:8096/web/index.html#!/wizardstart.html.
       Complete it in a browser before connecting native Jellyfin clients.
+      Audiobookshelf is available at http://10.2.20.113:8000, and Kavita is
+      available at http://10.2.20.113:5000.
     '';
   };
 }

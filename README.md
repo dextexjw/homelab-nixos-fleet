@@ -129,6 +129,8 @@ These values are already represented in `hosts.nix` and `hosts/media-vm/configur
 `media-vm` runs:
 
 - Jellyfin
+- Audiobookshelf
+- Kavita
 - Radarr
 - Sonarr
 - Prowlarr
@@ -141,13 +143,15 @@ These values are already represented in `hosts.nix` and `hosts/media-vm/configur
 
 ## media-vm storage model
 
-`/srv/appsdata` is the single folder to back up for media-stack application recovery. It holds Jellyfin, Radarr, Sonarr, Prowlarr, Bazarr, qBittorrent, SABnzbd, Jellyseerr, FlareSolverr placeholder state, and monitoring backup state.
+`/srv/appsdata` is the single folder to back up for media-stack application recovery. It holds Jellyfin, Audiobookshelf, Kavita, Radarr, Sonarr, Prowlarr, Bazarr, qBittorrent, SABnzbd, Jellyseerr, FlareSolverr placeholder state, and monitoring backup state.
 
 Media files under `/mnt/media` are mounted from SMB and are not included in `appsdata-backup.service`. Back up the NAS media share separately if you want movie, TV, book, podcast, audiobook, comic, or PDF files protected.
 
 Appdata paths:
 
 - Jellyfin: `/srv/appsdata/jellyfin`
+- Audiobookshelf: `/srv/appsdata/audiobookshelf`
+- Kavita: `/srv/appsdata/kavita`
 - Radarr: `/srv/appsdata/radarr`
 - Sonarr: `/srv/appsdata/sonarr`
 - Prowlarr: `/srv/appsdata/prowlarr`
@@ -157,6 +161,8 @@ Appdata paths:
 - Jellyseerr: `/srv/appsdata/jellyseerr`
 - FlareSolverr: `/srv/appsdata/flaresolverr`
 - Monitoring: `/srv/appsdata/monitoring`
+
+Kavita's token key is generated at `/srv/appsdata/kavita/config/token.key` on first start and is covered by the same appdata backup and restore flow.
 
 Media paths:
 
@@ -396,6 +402,8 @@ colmena apply switch
 
 ```sh
 colmena exec --on media-vm -- systemctl status jellyfin
+colmena exec --on media-vm -- systemctl status audiobookshelf
+colmena exec --on media-vm -- systemctl status kavita
 colmena exec --on media-vm -- systemctl status radarr
 colmena exec --on media-vm -- systemctl status sonarr
 colmena exec --on media-vm -- systemctl status prowlarr
@@ -410,6 +418,8 @@ colmena exec --on media-vm -- systemctl status prometheus-node-exporter
 ## media-vm web UIs
 
 - Jellyfin: `http://10.2.20.113:8096`
+- Audiobookshelf: `http://10.2.20.113:8000`
+- Kavita: `http://10.2.20.113:5000`
 - Radarr: `http://10.2.20.113:7878`
 - Sonarr: `http://10.2.20.113:8989`
 - Prowlarr: `http://10.2.20.113:9696`
@@ -494,7 +504,7 @@ This is the canonical destructive full restore procedure. During bootstrap, run 
 
 ```sh
 systemctl stop appsdata-backup.timer
-systemctl stop jellyfin radarr sonarr prowlarr bazarr qbittorrent sabnzbd jellyseerr flaresolverr
+systemctl stop jellyfin audiobookshelf kavita radarr sonarr prowlarr bazarr qbittorrent sabnzbd jellyseerr flaresolverr
 ```
 
 2. Mount the backup share:
@@ -528,7 +538,7 @@ RESTIC_REPOSITORY=/mnt/backups/restic/appdata/media-stack-vm \
 
 ```sh
 systemd-tmpfiles --create
-systemctl start jellyfin radarr sonarr prowlarr bazarr qbittorrent sabnzbd jellyseerr flaresolverr
+systemctl start jellyfin audiobookshelf kavita radarr sonarr prowlarr bazarr qbittorrent sabnzbd jellyseerr flaresolverr
 systemctl start appsdata-backup.timer
 systemctl start appsdata-restore-check.service
 ```
