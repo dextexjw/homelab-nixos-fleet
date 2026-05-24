@@ -69,6 +69,7 @@ phase_enable_vm_secret_access() {
 
 phase_deploy_media_vm() {
   "$ROOT/scripts/deploy-media.sh"
+  ensure_vm_hostname
 }
 
 phase_restore_appdata() {
@@ -81,6 +82,13 @@ phase_restore_appdata() {
   else
     "$ROOT/scripts/restore-media-appdata.sh"
   fi
+}
+
+ensure_vm_hostname() {
+  need ssh
+
+  printf 'Ensuring %s transient hostname matches deployed hostname...\n' "$HOST"
+  ssh_media_vm "sudo hostnamectl --transient set-hostname '$HOST'" || die "unable to set transient hostname on $HOST_IP"
 }
 
 phase_verify_media_vm() {

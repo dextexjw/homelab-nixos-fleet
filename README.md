@@ -269,7 +269,8 @@ The wrapper runs these phases in order:
   `nix flake check`, and `colmena build --on media-vm`.
 - `enable-vm-secret-access`: adds the VM SSH host key as a SOPS age recipient
   and rekeys secrets.
-- `deploy-media-vm`: runs the guarded `media-vm` deployment.
+- `deploy-media-vm`: runs the guarded `media-vm` deployment and normalizes
+  the transient hostname left by the installer.
 - `restore-appdata`: restores existing appdata from Restic when a matching
   snapshot exists.
 - `verify-media-vm`: confirms hostname state and runs the backup/restore

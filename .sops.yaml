@@ -8,4 +8,5 @@ creation_rules:
     age: >
       ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIATd/kn93HeAqaT5e8uW68n/JoWBesQkyruVNLsG3NDc khalid,
       age1aftkyfnfva6z3zvm725hj7rmqqpfw764hgsks2wzjne2mhdsdcwst398mf,
-      age1e3gnv2pcwy8zhtprvqw582qtq65myw2aa63tzks4gx9u35gjy92qf4ku4v
+      age1e3gnv2pcwy8zhtprvqw582qtq65myw2aa63tzks4gx9u35gjy92qf4ku4v,
+      age14qf5mpr9c9tl8gqt5yex8vh9lcycags2hp4vexsrr7wgj5trvvuq5rhvuz

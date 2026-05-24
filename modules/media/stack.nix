@@ -52,17 +52,11 @@ let
     "${appdata}/audiobookshelf"
     "${appdata}/audiobookshelf/config"
     "${appdata}/audiobookshelf/metadata"
-    "${appdata}/bazarr"
     "${appdata}/flaresolverr"
-    "${appdata}/jellyfin"
-    "${appdata}/jellyfin/cache"
     "${appdata}/jellyseerr"
     "${appdata}/monitoring"
-    "${appdata}/prowlarr"
     "${appdata}/qbittorrent"
-    "${appdata}/radarr"
     "${appdata}/sabnzbd"
-    "${appdata}/sonarr"
   ];
 
   sabnzbdConfig = pkgs.writeText "sabnzbd.ini" ''
