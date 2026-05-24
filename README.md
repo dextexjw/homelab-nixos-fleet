@@ -261,6 +261,18 @@ ssh smoke@10.2.20.113
 
 5. Add the VM SSH host recipient to `.sops.yaml`, then rekey secrets.
 
+Run the helper from inside `nix develop`:
+
+```sh
+scripts/update-media-sops-recipient.sh
+```
+
+The script fetches the VM's `/etc/ssh/ssh_host_ed25519_key` public key, converts
+it to an age recipient, adds it to `.sops.yaml` if needed, runs
+`sops updatekeys --yes secrets/secrets.yaml`, and verifies local decryption.
+
+Manual fallback:
+
 Fetch the VM's `/etc/ssh/ssh_host_ed25519_key` public key and convert it to an
 age recipient:
 
@@ -272,7 +284,7 @@ Add the printed `age1...` recipient to `.sops.yaml`, then update and verify the
 encrypted secrets:
 
 ```sh
-sops updatekeys secrets/secrets.yaml
+sops updatekeys --yes secrets/secrets.yaml
 sops --decrypt secrets/secrets.yaml >/dev/null && echo ok
 ```
 
