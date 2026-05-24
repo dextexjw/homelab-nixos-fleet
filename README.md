@@ -326,6 +326,12 @@ This recipient must be derived from `/etc/ssh/ssh_host_ed25519_key`, because tha
 
 ```sh
 colmena apply --on media-vm switch
+```
+
+Optional fallback: if the local machine should not or cannot build the
+`media-vm` system profile, build on the VM instead:
+
+```sh
 colmena apply --on media-vm switch --build-on-target
 ```
 
