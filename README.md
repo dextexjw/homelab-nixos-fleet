@@ -304,6 +304,42 @@ scripts/bootstrap-media-vm.sh run --snapshot-id <snapshot-id>
 During verification, both static and transient hostname values should report
 `media-vm`.
 
+## media-vm Upgrade
+
+Use this flow for an already-running `media-vm`. It deploys the current repo
+state only; update and review `flake.lock` separately before running it.
+
+```sh
+nix develop
+scripts/upgrade-media-vm.sh run
+```
+
+The wrapper runs these phases in order:
+
+- `check-upgrade-readiness`: verifies dev-shell tools, encrypted secrets,
+  non-interactive SSH, `nix flake check`, and `colmena build --on media-vm`.
+- `create-pre-upgrade-backup`: starts an appdata Restic backup and lists the
+  latest matching snapshots.
+- `dry-activate-media-vm`: validates the activation plan with
+  `colmena apply --on media-vm dry-activate`.
+- `deploy-media-vm`: runs the guarded `media-vm` deployment and normalizes the
+  transient hostname.
+- `verify-media-vm`: confirms hostname state, runs backup/restore validation,
+  checks tmpfiles declarations, and verifies key media services are active.
+
+The upgrade workflow never restores appdata automatically. Use the restore
+workflow only when recovering from a failed host or bad application state.
+
+The phases can also be run individually:
+
+```sh
+scripts/upgrade-media-vm.sh check-upgrade-readiness
+scripts/upgrade-media-vm.sh create-pre-upgrade-backup
+scripts/upgrade-media-vm.sh dry-activate-media-vm
+scripts/upgrade-media-vm.sh deploy-media-vm
+scripts/upgrade-media-vm.sh verify-media-vm
+```
+
 ## Backups and Restore
 
 `media-vm` backs up `/srv/appsdata` with Restic.
