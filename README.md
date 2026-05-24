@@ -194,10 +194,10 @@ Important: sops-nix decrypts secrets on `media-vm` using the key paths configure
 To capture the `media-vm` host public key after the VM exists:
 
 ```sh
-ssh-keyscan -t ed25519 10.2.20.113 2>/dev/null | awk '{print $2 " " $3}'
+ssh smoke@10.2.20.113 'sudo ssh-keygen -y -f /etc/ssh/ssh_host_ed25519_key' | ssh-to-age
 ```
 
-Add that `ssh-ed25519 ...` recipient to `.sops.yaml`, then rekey `secrets/secrets.yaml`.
+Add that `age1...` recipient to `.sops.yaml`, then rekey `secrets/secrets.yaml`.
 
 Note: qBittorrent reads `qbittorrent-webui-username` and `qbittorrent-webui-password`
 from SOPS during service startup. The password is hashed on `media-vm` into
@@ -308,11 +308,11 @@ colmena build --on media-vm
 6. Add the VM's configured SOPS key to `.sops.yaml`, then rekey the secrets file:
 
 ```sh
-ssh smoke@10.2.20.113 'sudo ssh-keygen -y -f /etc/ssh/ssh_host_ed25519_key' | awk '{print $1 " " $2 " media-vm"}'
+ssh smoke@10.2.20.113 'sudo ssh-keygen -y -f /etc/ssh/ssh_host_ed25519_key' | ssh-to-age
 sops updatekeys secrets/secrets.yaml
 ```
 
-Use the printed `ssh-ed25519 ... media-vm` public key as a recipient in `.sops.yaml`. This must be the key from `/etc/ssh/ssh_host_ed25519_key`, because that is the private key `media-vm` uses to decrypt SOPS secrets during activation.
+Use the printed `age1...` public key as a recipient in `.sops.yaml`. This must be derived from `/etc/ssh/ssh_host_ed25519_key`, because that is the private key `media-vm` uses to decrypt SOPS secrets during activation.
 
 7. Deploy `media-vm`:
 

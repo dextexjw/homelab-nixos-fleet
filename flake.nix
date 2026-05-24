@@ -65,6 +65,7 @@
             pkgs.age
             pkgs.restic
             pkgs.sops
+            pkgs.ssh-to-age
           ];
         };
 

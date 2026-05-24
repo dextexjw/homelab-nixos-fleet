@@ -47,7 +47,7 @@ Next steps:
   2. Ensure SSH for smoke works at 10.2.20.113.
   3. Add the VM's /etc/ssh/ssh_host_ed25519_key public key to .sops.yaml.
      Fetch it with:
-       ssh smoke@10.2.20.113 'sudo ssh-keygen -y -f /etc/ssh/ssh_host_ed25519_key' | awk '{print $1 " " $2 " media-vm"}'
+       ssh smoke@10.2.20.113 'sudo ssh-keygen -y -f /etc/ssh/ssh_host_ed25519_key' | ssh-to-age
   4. Run: sops updatekeys secrets/secrets.yaml
   5. Run: scripts/deploy-media.sh
 MSG
