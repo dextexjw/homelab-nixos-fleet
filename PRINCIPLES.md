@@ -14,6 +14,9 @@ recoverable from known-good state.
   deploy, then verify.
 - **Recover by design:** stateful services must define their data root, backup
   policy, restore path, and restore validation.
+- **Centralize app data:** app and service state belongs under
+  `/srv/appsdata/<service_name>` so one restore-critical tree can be backed up
+  consistently.
 - **Keep secrets runtime-only:** secrets are encrypted in Git, decrypted only on
   authorized hosts, and consumed from runtime files.
 
@@ -54,6 +57,24 @@ Required upgrade sequence:
 Never auto-restore during an upgrade. Restore is a separate recovery action and
 must use an explicit snapshot when multiple candidates exist.
 
+## App Data And Backup Layout
+
+MediaVM's appdata model is the fleet default for stateful services.
+
+- Store persistent app and service data under `/srv/appsdata/<service_name>`.
+- If an upstream app requires another data path, declare that path in Nix and
+  use a symlink or bind mount so the authoritative data still lives cleanly
+  under `/srv/appsdata/<service_name>`.
+- Back up `/srv/appsdata` as the single Restic source for app and service
+  state.
+- Mount the backup SMB share at `/mnt/backup` using the shared
+  `smb-credentials` secret and the fleet SMB mount pattern.
+- Use the existing `restic-password` secret for Restic repositories; do not
+  introduce service-specific Restic passwords unless there is a documented
+  recovery reason.
+- Keep Restic repositories, host names, tags, retention, restore checks, and
+  recovery notes declared in Nix and aligned with the service module.
+
 ## Security And Secrets Standards
 
 - Use SOPS plus `sops-nix` for all credentials, keys, password hashes, and
@@ -78,6 +99,8 @@ A new Gateway, Security, Identity, or future module is ready only when it:
 - gates implementation with `mkIf cfg.enable`;
 - declares users, groups, directories, ports, timers, mounts, and systemd
   dependencies in Nix;
+- keeps persistent state under `/srv/appsdata/<service_name>`, with declared
+  symlinks or bind mounts for apps that need legacy paths;
 - documents required secrets and uses SOPS exclusively;
 - includes guarded deploy and upgrade workflows when stateful or
   security-sensitive;
