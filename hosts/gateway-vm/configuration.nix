@@ -94,6 +94,13 @@ in
   fleet.gateway.technitium = {
     adminPasswordFile = config.sops.secrets.technitium-admin-password.path;
     enable = true;
+    localZone.aRecords = {
+      "*" = host.ip;
+      gateway = host.ip;
+      gateway-vm = host.ip;
+      technitium = host.ip;
+      traefik = host.ip;
+    };
     serverDomain = host.fqdn;
     tlsCertificateDomain = "technitium.${domain}";
     tlsSubjectAltNames = [

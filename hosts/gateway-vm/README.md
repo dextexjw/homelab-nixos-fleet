@@ -1,0 +1,218 @@
+# gateway-vm
+
+`gateway-vm` runs Traefik ingress, Technitium DNS, netboot.xyz, NetBird, and
+Tailscale.
+
+Fleet inventory lives in `../../hosts.nix`. Host configuration lives in
+`configuration.nix` and imports service modules from `../../modules/gateway/`.
+
+## Host Model
+
+Important host values:
+
+- FQDN: `gateway.home.arpa`
+- IP: `10.2.20.112`
+- Gateway: `10.2.20.1`
+- DNS: `10.2.20.1`, `9.9.9.9`
+- Time zone: `America/New_York`
+- Admin user: `smoke`
+- VM disk: `/dev/sda`
+- VM RAM: `8 GB`
+- VM CPU cores: `4`
+
+State paths:
+
+- `/srv/appsdata/technitium-dns-server`
+- `/srv/appsdata/netbird`
+- `/srv/appsdata/tailscale`
+
+Gateway state is backed up with Restic to
+`/mnt/backup/restic/appdata/gateway-vm`. The restore-check target is
+`/var/tmp/gateway-state-restore-check`.
+
+## Service Access
+
+Direct service ports:
+
+- DNS: `10.2.20.112:53` over TCP and UDP
+- DNS-over-TLS: `10.2.20.112:853`
+- Technitium admin HTTP: `http://10.2.20.112:5380`
+- Technitium HTTPS and DNS-over-HTTPS: `https://10.2.20.112:53443`
+- netboot.xyz TFTP: `10.2.20.112:69/udp`, boot file `netboot.xyz.efi`
+- NetBird: `10.2.20.112:51820/udp`
+- Tailscale: `10.2.20.112:41641/udp`
+
+Technitium serves the `home.arpa` zone and points `*.home.arpa` at
+`10.2.20.112` for Traefik ingress. Clients must use `10.2.20.112` as DNS, or
+the LAN DNS/DHCP server must forward/delegate `home.arpa` to `10.2.20.112`, for
+these names to resolve.
+
+Traefik routes are declared for:
+
+- `traefik.home.arpa`
+- `technitium.home.arpa`
+- `jellyfin.home.arpa`
+- `audiobookshelf.home.arpa`
+- `kavita.home.arpa`
+- `sonarr.home.arpa`
+- `radarr.home.arpa`
+- `prowlarr.home.arpa`
+- `bazarr.home.arpa`
+- `qbittorrent.home.arpa`
+- `sabnzbd.home.arpa`
+- `jellyseerr.home.arpa`
+
+For netboot.xyz, configure the LAN DHCP server to point option 66 at
+`10.2.20.112` and option 67 at `netboot.xyz.efi`. `gateway-vm` serves TFTP but
+does not take over DHCP for the subnet.
+
+## Secrets
+
+Required secrets:
+
+- `admin-password-hash`
+- `smb-credentials`
+- `restic-password`
+- `technitium-admin-password`
+
+Normal edit flow:
+
+```sh
+nix develop
+sops secrets/secrets.yaml
+sops --decrypt secrets/secrets.yaml >/dev/null && echo ok
+```
+
+`gateway-vm` decrypts secrets using `/etc/ssh/ssh_host_ed25519_key`. After a
+new VM install or host key change, capture the host recipient:
+
+```sh
+ssh smoke@10.2.20.112 'sudo ssh-keygen -y -f /etc/ssh/ssh_host_ed25519_key' | ssh-to-age
+```
+
+Add the printed `age1...` recipient to `.sops.yaml`, then rekey:
+
+```sh
+sops updatekeys secrets/secrets.yaml
+sops --decrypt secrets/secrets.yaml >/dev/null && echo ok
+```
+
+Keep `restic-password` stable. It is the encryption key for the Restic
+repository; changing it makes existing snapshots unreadable with the new value.
+
+## Bootstrap
+
+Use this flow after preparing a fresh `gateway-vm` install. The destructive
+`nixos-anywhere` VM install is managed outside this fleet repo before
+declarative deployment begins.
+
+```sh
+nix develop
+scripts/bootstrap-gateway-vm.sh run
+```
+
+The bootstrap phases are resumable:
+
+- `check-local-readiness`: verifies tools, encrypted secrets, `nix flake check`, and `colmena build --on gateway-vm`.
+- `enable-vm-secret-access`: captures the gateway SSH host key, adds the age recipient to `.sops.yaml`, and runs `sops updatekeys`.
+- `dry-activate-gateway-vm`: validates the activation plan with `colmena apply --on gateway-vm dry-activate`.
+- `deploy-gateway-vm`: runs the guarded gateway deployment.
+- `verify-gateway-vm`: confirms hostnames, service health, listener ports, Traefik routes, and Restic backup/restore validation.
+
+Individual phases:
+
+```sh
+scripts/bootstrap-gateway-vm.sh check-local-readiness
+scripts/bootstrap-gateway-vm.sh enable-vm-secret-access
+scripts/bootstrap-gateway-vm.sh dry-activate-gateway-vm
+scripts/bootstrap-gateway-vm.sh deploy-gateway-vm
+scripts/bootstrap-gateway-vm.sh verify-gateway-vm
+```
+
+## Deploy
+
+Use plain Colmena commands from inside `nix develop`.
+
+```sh
+colmena build --on gateway-vm
+colmena apply --on gateway-vm dry-activate
+colmena apply --on gateway-vm switch
+```
+
+The guarded deploy helper checks local SOPS decryption and confirms the VM has
+a matching SOPS recipient before switching:
+
+```sh
+scripts/deploy-gateway.sh
+```
+
+## Backups and Restore
+
+`gateway-vm` backs up `/srv/appsdata` with Restic.
+
+- Service: `gateway-state-backup.service`
+- Timer: `gateway-state-backup.timer`
+- Source: `/srv/appsdata`
+- Repository: `/mnt/backup/restic/appdata/gateway-vm`
+- Password file: `/run/secrets/restic-password`
+- Non-destructive restore validation: `gateway-state-restore-check.service`
+
+Post-deploy validation:
+
+```sh
+scripts/test-gateway-services.sh
+```
+
+That script verifies service health, listener ports, Traefik routes, and
+gateway state backup/restore validation.
+
+Manual backup and restore validation on `gateway-vm`:
+
+```sh
+mount /mnt/backup
+systemctl start gateway-state-backup.service
+systemctl start gateway-state-restore-check.service
+systemctl status gateway-state-backup.service gateway-state-restore-check.service
+```
+
+Restore outline:
+
+1. Deploy `gateway-vm` once to create users, secrets, mounts, and units.
+2. Stop Technitium, NetBird, and Tailscale before replacing state.
+3. Mount `/mnt/backup`.
+4. Choose a `gateway-vm` appdata snapshot ID.
+5. Restore the snapshot to `/` with `restic --verify`.
+6. Run `systemd-tmpfiles --create`.
+7. Restart `technitium-dns-server.service`, `netbird.service`, and `tailscaled.service`.
+
+The same service and recovery model is generated on `gateway-vm` at
+`/etc/fleet/gateway-vm.md`. Keep this README and the generated recovery notes
+in sync when backup or restore behavior changes.
+
+## Operations
+
+Check service status through Colmena:
+
+```sh
+colmena exec --on gateway-vm -- systemctl status traefik
+colmena exec --on gateway-vm -- systemctl status technitium-dns-server
+colmena exec --on gateway-vm -- systemctl status atftpd
+colmena exec --on gateway-vm -- systemctl status netbird
+colmena exec --on gateway-vm -- systemctl status tailscaled
+colmena exec --on gateway-vm -- systemctl status gateway-state-backup.timer
+```
+
+Roll back a NixOS generation from the host:
+
+```sh
+sudo nixos-rebuild switch --rollback
+```
+
+You can also reboot and choose an earlier generation from the bootloader.
+
+## Safety Notes
+
+- `hosts.nix` declares the `gateway-vm` disk as `/dev/sda`; any installer or partitioning command against that disk is destructive.
+- `gateway-vm` serves TFTP for netboot.xyz but does not take over DHCP for the subnet.
+- Keep auth keys and service secrets in encrypted secrets only.
+- Do not write plaintext secrets into Nix files, generated configs, recovery notes, logs, or chat.

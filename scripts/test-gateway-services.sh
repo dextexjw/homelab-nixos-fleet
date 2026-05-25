@@ -56,6 +56,7 @@ ssh_gateway_vm() {
 }
 
 need ssh
+need dig
 
 printf 'Checking %s hostname state...\n' "$HOST"
 hostname_output="$(ssh_gateway_vm 'hostnamectl --static; hostnamectl --transient')" || die "unable to read hostname state"
@@ -89,6 +90,22 @@ printf 'Checking NetBird WireGuard configuration...\n'
 wait_for_remote "NetBird WireGuard port is not configured" \
   "sudo grep -Eq '\"WgPort\"[[:space:]]*:[[:space:]]*51820' /var/lib/netbird/config.json"
 printf '  netbird WgPort configured for udp/51820\n'
+
+printf 'Checking home.arpa DNS records...\n'
+for name in traefik.home.arpa technitium.home.arpa jellyfin.home.arpa; do
+  for attempt in {1..60}; do
+    if dig @"$HOST_IP" "$name" +short | grep -Fxq "$HOST_IP"; then
+      printf '  %s resolves to %s\n' "$name" "$HOST_IP"
+      break
+    fi
+
+    if [[ "$attempt" == 60 ]]; then
+      die "$name does not resolve to $HOST_IP through gateway DNS"
+    fi
+
+    sleep 1
+  done
+done
 
 printf 'Checking Traefik and Technitium local HTTP endpoints...\n'
 wait_for_remote "Traefik dashboard route failed" "curl -fsS -H 'Host: traefik.home.arpa' http://127.0.0.1/dashboard/ >/dev/null"

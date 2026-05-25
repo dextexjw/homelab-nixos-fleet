@@ -9,6 +9,24 @@ with lib;
 
 let
   cfg = config.fleet.gateway.technitium;
+  localARecords = mapAttrsToList (
+    name: address: {
+      address = address;
+      domain =
+        if name == "@" then
+          cfg.localZone.domain
+        else
+          "${name}.${cfg.localZone.domain}";
+    }
+  ) cfg.localZone.aRecords;
+  localZoneRecordCommands = concatMapStringsSep "\n" (record: ''
+    api_expect_ok "add ${record.domain} A record" "$base/api/zones/records/add" \
+      --data-urlencode "domain=${record.domain}" \
+      --data-urlencode "zone=${cfg.localZone.domain}" \
+      --data-urlencode "type=A" \
+      --data-urlencode "ipAddress=${record.address}" \
+      --data-urlencode "overwrite=true"
+  '') localARecords;
   adminPasswordFileArg =
     if cfg.adminPasswordFile == null then
       "''"
@@ -54,6 +72,30 @@ in
       type = types.port;
       default = 53443;
       description = "Technitium HTTPS and DNS-over-HTTPS port.";
+    };
+
+    localZone = {
+      aRecords = mkOption {
+        type = types.attrsOf types.str;
+        default = { };
+        description = "A records to publish in the local gateway DNS zone.";
+        example = {
+          "*" = "10.2.20.112";
+          gateway = "10.2.20.112";
+        };
+      };
+
+      domain = mkOption {
+        type = types.str;
+        default = "home.arpa";
+        description = "Authoritative local DNS zone served by Technitium.";
+      };
+
+      enable = mkOption {
+        type = types.bool;
+        default = true;
+        description = "Create and maintain a local authoritative DNS zone.";
+      };
     };
 
     serverDomain = mkOption {
@@ -214,8 +256,48 @@ in
             --data-urlencode "pass=$admin_password")"
           echo "$change_response" | grep -q '"status":"ok"'
 
-          token="$(login "$admin_password")"
+        token="$(login "$admin_password")"
         fi
+
+        api_expect_ok() {
+          local label="$1"
+          local endpoint="$2"
+          shift 2
+          local response
+
+          response="$(curl -fsS -X POST "$endpoint" \
+            --data-urlencode "token=$token" \
+            "$@")"
+
+          if ! echo "$response" | grep -q '"status":"ok"'; then
+            echo "Technitium API call failed: $label" >&2
+            echo "$response" >&2
+            exit 1
+          fi
+        }
+
+        api_expect_ok_or_exists() {
+          local label="$1"
+          local endpoint="$2"
+          shift 2
+          local response
+
+          response="$(curl -fsS -X POST "$endpoint" \
+            --data-urlencode "token=$token" \
+            "$@")"
+
+          if echo "$response" | grep -q '"status":"ok"'; then
+            return 0
+          fi
+
+          if echo "$response" | grep -qi 'already exists'; then
+            return 0
+          fi
+
+          echo "Technitium API call failed: $label" >&2
+          echo "$response" >&2
+          exit 1
+        }
 
         settings_response="$(curl -fsS -X POST "$base/api/settings/set" \
           --data-urlencode "token=$token" \
@@ -231,6 +313,14 @@ in
           --data-urlencode "dnsTlsCertificatePassword=" \
           --data-urlencode "dnsOverHttpRealIpHeader=X-Real-IP")"
         echo "$settings_response" | grep -q '"status":"ok"'
+
+        ${optionalString cfg.localZone.enable ''
+          api_expect_ok_or_exists "create ${cfg.localZone.domain} zone" "$base/api/zones/create" \
+            --data-urlencode "zone=${cfg.localZone.domain}" \
+            --data-urlencode "type=Primary"
+
+          ${localZoneRecordCommands}
+        ''}
 
         systemctl restart technitium-dns-server.service
 
