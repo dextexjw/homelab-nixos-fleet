@@ -4,13 +4,12 @@ set -euo pipefail
 HOST="gateway-vm"
 HOST_IP="10.2.20.112"
 REMOTE_USER="smoke"
-TCP_PORTS=(22 53 80 853 5380 53443)
+EXTERNAL_TCP_PORTS=(22 53 80 853 5380 8080 53443)
 UDP_PORTS=(53 69 41641)
 KEY_UNITS=(
   traefik.service
   technitium-dns-server.service
   atftpd.service
-  netbird.service
   tailscaled.service
   gateway-state-backup.timer
 )
@@ -68,15 +67,21 @@ transient_hostname="$(printf '%s\n' "$hostname_output" | sed -n '2p')"
 [[ "$static_hostname" == "$HOST" ]] || die "static hostname is '$static_hostname', expected '$HOST'"
 [[ "$transient_hostname" == "$HOST" ]] || die "transient hostname is '$transient_hostname', expected '$HOST'"
 
+CHECK_NETBIRD=0
+if ssh_gateway_vm "systemctl list-unit-files 'netbird.service' --no-legend 2>/dev/null | grep -q '^netbird[.]service'"; then
+  CHECK_NETBIRD=1
+  KEY_UNITS+=(netbird.service)
+fi
+
 printf 'Checking gateway units...\n'
 for unit in "${KEY_UNITS[@]}"; do
   wait_for_remote "$unit is not active" "systemctl is-active --quiet '$unit'"
   printf '  %s active\n' "$unit"
 done
 
-printf 'Checking listening TCP ports...\n'
-for port in "${TCP_PORTS[@]}"; do
-  wait_for_remote "TCP $port is not listening" "sudo ss -ltn '( sport = :$port )' | grep -q ':$port'"
+printf 'Checking externally exposed TCP listeners...\n'
+for port in "${EXTERNAL_TCP_PORTS[@]}"; do
+  wait_for_remote "TCP $port is not externally listening" "sudo ss -ltn '( sport = :$port )' | grep -Eq '([[:space:]]|^)(${HOST_IP}|0[.]0[.]0[.]0|\\*|\\[::\\]):$port'"
   printf '  tcp/%s listening\n' "$port"
 done
 
@@ -86,10 +91,14 @@ for port in "${UDP_PORTS[@]}"; do
   printf '  udp/%s listening\n' "$port"
 done
 
-printf 'Checking NetBird WireGuard configuration...\n'
-wait_for_remote "NetBird WireGuard port is not configured" \
-  "sudo grep -Eq '\"WgPort\"[[:space:]]*:[[:space:]]*51820' /var/lib/netbird/config.json"
-printf '  netbird WgPort configured for udp/51820\n'
+if [[ "$CHECK_NETBIRD" == 1 ]]; then
+  printf 'Checking NetBird WireGuard configuration...\n'
+  wait_for_remote "NetBird WireGuard port is not configured" \
+    "sudo grep -Eq '\"WgPort\"[[:space:]]*:[[:space:]]*51820' /var/lib/netbird/config.json"
+  printf '  netbird WgPort configured for udp/51820\n'
+else
+  printf 'Skipping NetBird checks; netbird.service is not installed on %s\n' "$HOST"
+fi
 
 printf 'Checking home.arpa DNS records...\n'
 for name in traefik.home.arpa technitium.home.arpa jellyfin.home.arpa; do
@@ -108,7 +117,7 @@ for name in traefik.home.arpa technitium.home.arpa jellyfin.home.arpa; do
 done
 
 printf 'Checking Traefik and Technitium local HTTP endpoints...\n'
-wait_for_remote "Traefik dashboard route failed" "curl -fsS -H 'Host: traefik.home.arpa' http://127.0.0.1/dashboard/ >/dev/null"
+wait_for_remote "Traefik dashboard route failed" "curl -fsS http://127.0.0.1:8080/dashboard/ >/dev/null"
 wait_for_remote "Technitium route failed" "curl -fsS -H 'Host: technitium.home.arpa' http://127.0.0.1/ >/dev/null"
 
 printf 'Running gateway state backup and restore validation...\n'

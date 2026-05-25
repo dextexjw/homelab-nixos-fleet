@@ -73,7 +73,7 @@ in
   # ============================================================================
 
   fleet.gateway.netbird = {
-    enable = true;
+    enable = false;
   };
 
   fleet.gateway.netbootxyz = {
@@ -108,6 +108,7 @@ in
       "DNS:gateway-vm.${domain}"
       "IP:${host.ip}"
     ];
+    webServiceLocalAddresses = "${host.ip},127.0.0.1,::1";
   };
 
   fleet.gateway.traefik = {
@@ -225,15 +226,15 @@ in
       *.${domain}
 
     Declared services:
-      Traefik: traefik.service, ports 80 and optional 443
-      Technitium: technitium-dns-server.service, state /srv/appsdata/technitium-dns-server
+      Traefik: traefik.service, ingress ports 80 and optional 443, dashboard port 8080
+      Technitium: technitium-dns-server.service, state /srv/appsdata/technitium-dns-server, admin HTTP on ${host.ip}:5380 and http://technitium.${domain}
       netboot.xyz: atftpd.service, TFTP root /srv/netbootxyz, boot file netboot.xyz.efi
-      NetBird: netbird.service, state /srv/appsdata/netbird
+      NetBird: disabled for now, state preserved at /srv/appsdata/netbird
       Tailscale: tailscaled.service, state /srv/appsdata/tailscale
       State backups: gateway-state-backup.timer, repository /mnt/backup/restic/appdata/gateway-vm
 
     Internal routes:
-      http://traefik.${domain}
+      http://traefik.${domain}:8080/dashboard/
       http://technitium.${domain}
       http://jellyfin.${domain}
       http://audiobookshelf.${domain}
@@ -262,7 +263,6 @@ in
       systemctl is-active traefik.service
       systemctl is-active technitium-dns-server.service
       systemctl is-active atftpd.service
-      systemctl is-active netbird.service
       systemctl is-active tailscaled.service
       systemctl is-active gateway-state-backup.timer
       ss -lntu

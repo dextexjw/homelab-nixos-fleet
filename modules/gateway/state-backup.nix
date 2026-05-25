@@ -12,6 +12,7 @@ let
   cfg = config.fleet.gateway.stateBackup;
   appdata = cfg.appDataRoot;
   mountUnit = path: "${utils.escapeSystemdPath path}.mount";
+  netbirdEnabled = config.fleet.gateway.netbird.enable or false;
 in
 {
   # ============================================================================
@@ -160,7 +161,7 @@ in
       "d ${cfg.restoreCheckTarget} 0700 root root - -"
     ];
 
-    systemd.services.netbird = {
+    systemd.services.netbird = mkIf netbirdEnabled {
       after = [ (mountUnit "/var/lib/netbird") ];
       requires = [ (mountUnit "/var/lib/netbird") ];
     };

@@ -56,14 +56,11 @@ let
     };
 
   dashboardRouters = optionalAttrs cfg.dashboard.enable {
-    dashboard = (
-      {
-        entryPoints = routerEntryPoints;
-        rule = "Host(`${dashboardHost}`)";
-        service = "api@internal";
-      }
-      // optionalAttrs cfg.enableTLS { tls = { }; }
-    );
+    dashboard = {
+      entryPoints = [ "dashboard" ];
+      rule = "PathPrefix(`/api`) || PathPrefix(`/dashboard`)";
+      service = "api@internal";
+    };
   };
 in
 {
@@ -86,6 +83,12 @@ in
         default = null;
         description = "Dashboard hostname. Defaults to traefik.<domain>.";
         example = "traefik.home.arpa";
+      };
+
+      port = mkOption {
+        type = types.port;
+        default = 8080;
+        description = "Dedicated Traefik dashboard and API entrypoint port.";
       };
     };
 
@@ -170,6 +173,8 @@ in
         entryPoints = {
           web.address = ":${toString cfg.httpPort}";
           websecure.address = ":${toString cfg.httpsPort}";
+        } // optionalAttrs cfg.dashboard.enable {
+          dashboard.address = ":${toString cfg.dashboard.port}";
         };
 
         global = {
@@ -182,6 +187,8 @@ in
     };
 
     networking.firewall.allowedTCPPorts =
-      [ cfg.httpPort ] ++ optional cfg.enableTLS cfg.httpsPort;
+      [ cfg.httpPort ]
+      ++ optional cfg.enableTLS cfg.httpsPort
+      ++ optional cfg.dashboard.enable cfg.dashboard.port;
   };
 }

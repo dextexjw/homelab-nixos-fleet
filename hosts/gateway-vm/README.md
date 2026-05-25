@@ -34,22 +34,40 @@ Gateway state is backed up with Restic to
 
 Direct service ports:
 
+- Traefik HTTP ingress: `http://10.2.20.112`
+- Traefik HTTPS ingress: `https://10.2.20.112`
+- Traefik dashboard: `http://10.2.20.112:8080/dashboard/`
 - DNS: `10.2.20.112:53` over TCP and UDP
 - DNS-over-TLS: `10.2.20.112:853`
 - Technitium admin HTTP: `http://10.2.20.112:5380`
 - Technitium HTTPS and DNS-over-HTTPS: `https://10.2.20.112:53443`
 - netboot.xyz TFTP: `10.2.20.112:69/udp`, boot file `netboot.xyz.efi`
-- NetBird: `10.2.20.112:51820/udp`
+- NetBird: disabled for now; state preserved at `/srv/appsdata/netbird`
 - Tailscale: `10.2.20.112:41641/udp`
+
+Technitium admin HTTP is available directly at `http://10.2.20.112:5380` and
+through Traefik at `http://technitium.home.arpa/`.
 
 Technitium serves the `home.arpa` zone and points `*.home.arpa` at
 `10.2.20.112` for Traefik ingress. Clients must use `10.2.20.112` as DNS, or
 the LAN DNS/DHCP server must forward/delegate `home.arpa` to `10.2.20.112`, for
 these names to resolve.
 
-Traefik routes are declared for:
+If a browser shows `DNS_PROBE_FINISHED_NXDOMAIN` for a `home.arpa` name, confirm
+whether the client is asking Gateway DNS:
 
-- `traefik.home.arpa`
+```sh
+dig technitium.home.arpa
+dig @10.2.20.112 technitium.home.arpa
+```
+
+The first command must query `10.2.20.112`, or the LAN DNS server must have a
+conditional forward/delegation for `home.arpa` to `10.2.20.112`. A temporary
+single-client workaround is adding `10.2.20.112 technitium.home.arpa` to that
+client's hosts file.
+
+Traefik ingress routes are declared for:
+
 - `technitium.home.arpa`
 - `jellyfin.home.arpa`
 - `audiobookshelf.home.arpa`
@@ -183,7 +201,7 @@ Restore outline:
 4. Choose a `gateway-vm` appdata snapshot ID.
 5. Restore the snapshot to `/` with `restic --verify`.
 6. Run `systemd-tmpfiles --create`.
-7. Restart `technitium-dns-server.service`, `netbird.service`, and `tailscaled.service`.
+7. Restart `technitium-dns-server.service` and `tailscaled.service`; restart `netbird.service` too if NetBird is re-enabled.
 
 The same service and recovery model is generated on `gateway-vm` at
 `/etc/fleet/gateway-vm.md`. Keep this README and the generated recovery notes
@@ -197,7 +215,6 @@ Check service status through Colmena:
 colmena exec --on gateway-vm -- systemctl status traefik
 colmena exec --on gateway-vm -- systemctl status technitium-dns-server
 colmena exec --on gateway-vm -- systemctl status atftpd
-colmena exec --on gateway-vm -- systemctl status netbird
 colmena exec --on gateway-vm -- systemctl status tailscaled
 colmena exec --on gateway-vm -- systemctl status gateway-state-backup.timer
 ```
