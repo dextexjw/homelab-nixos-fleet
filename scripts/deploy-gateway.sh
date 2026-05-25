@@ -23,6 +23,20 @@ need ssh-to-age
 
 cd "$ROOT"
 
+ssh_gateway_vm() {
+  ssh \
+    -o BatchMode=yes \
+    -o CheckHostIP=no \
+    -o ConnectTimeout=5 \
+    -o GlobalKnownHostsFile=/dev/null \
+    -o LogLevel=ERROR \
+    -o StrictHostKeyChecking=no \
+    -o UpdateHostKeys=no \
+    -o UserKnownHostsFile=/dev/null \
+    "$REMOTE_USER@$HOST_IP" \
+    "$@"
+}
+
 [[ -f "$SECRETS" ]] || die "missing $SECRETS"
 grep -q '^sops:' "$SECRETS" || die "$SECRETS does not look encrypted by sops"
 
@@ -39,16 +53,7 @@ if grep -q 'CHANGE_ME' <<<"$decrypted_secrets"; then
 fi
 
 if ! target_recipient="$(
-  ssh \
-    -o BatchMode=yes \
-    -o CheckHostIP=no \
-    -o ConnectTimeout=5 \
-    -o GlobalKnownHostsFile=/dev/null \
-    -o LogLevel=ERROR \
-    -o StrictHostKeyChecking=no \
-    -o UpdateHostKeys=no \
-    -o UserKnownHostsFile=/dev/null \
-    "$REMOTE_USER@$HOST_IP" \
+  ssh_gateway_vm \
     'sudo -n ssh-keygen -y -f /etc/ssh/ssh_host_ed25519_key' \
     2>/dev/null \
     | ssh-to-age
@@ -61,5 +66,7 @@ fi
 if ! grep -Fq "$target_recipient" "$SECRETS"; then
   die "$HOST cannot decrypt $SECRETS; run: scripts/update-gateway-sops-recipient.sh"
 fi
+
+ssh_gateway_vm 'sudo systemctl stop "mnt-gateway\x2dbackups.automount" "mnt-gateway\x2dbackups.mount" 2>/dev/null || true; sudo systemctl reset-failed "mnt-gateway\x2dbackups.automount" "mnt-gateway\x2dbackups.mount" 2>/dev/null || true'
 
 colmena apply --on "$HOST" switch

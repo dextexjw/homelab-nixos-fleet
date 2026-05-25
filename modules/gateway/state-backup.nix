@@ -10,6 +10,8 @@ with lib;
 
 let
   cfg = config.fleet.gateway.stateBackup;
+  appdata = cfg.appDataRoot;
+  mountUnit = path: "${utils.escapeSystemdPath path}.mount";
 in
 {
   # ============================================================================
@@ -25,6 +27,12 @@ in
       description = "SMB share used for gateway state backups.";
     };
 
+    appDataRoot = mkOption {
+      type = types.path;
+      default = "/srv/appsdata";
+      description = "Authoritative root for gateway service state.";
+    };
+
     credentialsFile = mkOption {
       type = types.path;
       description = "Runtime SMB credentials file.";
@@ -33,7 +41,7 @@ in
 
     mountPoint = mkOption {
       type = types.path;
-      default = "/mnt/gateway-backups";
+      default = "/mnt/backup";
       description = "Mount point for gateway backup storage.";
     };
 
@@ -43,20 +51,22 @@ in
       example = "/run/secrets/restic-password";
     };
 
-    paths = mkOption {
-      type = types.listOf types.path;
-      default = [
-        "/var/lib/netbird"
-        "/var/lib/tailscale"
-        "/var/lib/private/technitium-dns-server"
-      ];
-      description = "Gateway state paths included in Restic backups.";
+    source = mkOption {
+      type = types.path;
+      default = "/srv/appsdata";
+      description = "Single appdata source included in Restic backups.";
     };
 
     repository = mkOption {
       type = types.str;
-      default = "/mnt/gateway-backups/restic/gateway-vm/state";
+      default = "/mnt/backup/restic/appdata/gateway-vm";
       description = "Restic repository path for gateway state.";
+    };
+
+    tag = mkOption {
+      type = types.str;
+      default = "appsdata";
+      description = "Restic tag used for gateway appdata snapshots.";
     };
 
     retention = mkOption {
@@ -85,6 +95,24 @@ in
   config = mkIf cfg.enable {
     environment.systemPackages = [ pkgs.restic ];
 
+    fileSystems."/var/lib/netbird" = {
+      device = "${appdata}/netbird";
+      fsType = "none";
+      options = [ "bind" ];
+    };
+
+    fileSystems."/var/lib/tailscale" = {
+      device = "${appdata}/tailscale";
+      fsType = "none";
+      options = [ "bind" ];
+    };
+
+    fileSystems."/var/lib/private/technitium-dns-server" = {
+      device = "${appdata}/technitium-dns-server";
+      fsType = "none";
+      options = [ "bind" ];
+    };
+
     fileSystems.${cfg.mountPoint} = {
       device = cfg.backupDevice;
       fsType = "cifs";
@@ -102,15 +130,61 @@ in
       ];
     };
 
+    system.activationScripts.gatewayAppsdataMigration = ''
+      set -euo pipefail
+
+      migrate_gateway_state() {
+        local legacy="$1"
+        local target="$2"
+
+        mkdir -p "$target"
+
+        if [ -d "$legacy" ] && ! mountpoint -q "$legacy" && [ -z "$(ls -A "$target" 2>/dev/null)" ]; then
+          cp -aT "$legacy" "$target"
+        fi
+
+        mkdir -p "$legacy"
+      }
+
+      mkdir -p "${appdata}"
+      migrate_gateway_state /var/lib/netbird "${appdata}/netbird"
+      migrate_gateway_state /var/lib/tailscale "${appdata}/tailscale"
+      migrate_gateway_state /var/lib/private/technitium-dns-server "${appdata}/technitium-dns-server"
+    '';
+
     systemd.tmpfiles.rules = [
+      "d ${appdata} 0755 root root - -"
+      "d ${appdata}/netbird 0700 root root - -"
+      "d ${appdata}/tailscale 0700 root root - -"
+      "d ${appdata}/technitium-dns-server 0755 root root - -"
       "d ${cfg.restoreCheckTarget} 0700 root root - -"
     ];
 
+    systemd.services.netbird = {
+      after = [ (mountUnit "/var/lib/netbird") ];
+      requires = [ (mountUnit "/var/lib/netbird") ];
+    };
+
+    systemd.services.tailscaled = {
+      after = [ (mountUnit "/var/lib/tailscale") ];
+      requires = [ (mountUnit "/var/lib/tailscale") ];
+    };
+
+    systemd.services.technitium-dns-server = {
+      after = [ (mountUnit "/var/lib/private/technitium-dns-server") ];
+      requires = [ (mountUnit "/var/lib/private/technitium-dns-server") ];
+    };
+
     systemd.services.gateway-state-backup = {
-      description = "Back up gateway-vm state";
-      after = [ "${utils.escapeSystemdPath cfg.mountPoint}.mount" ];
-      wants = [ "${utils.escapeSystemdPath cfg.mountPoint}.mount" ];
+      description = "Back up gateway-vm /srv/appsdata";
+      after = [
+        "network-online.target"
+        (mountUnit cfg.mountPoint)
+      ];
+      requires = [ (mountUnit cfg.mountPoint) ];
+      wants = [ "network-online.target" ];
       serviceConfig = {
+        CacheDirectory = "restic-gateway-appsdata";
         Type = "oneshot";
         User = "root";
       };
@@ -122,22 +196,46 @@ in
       script = ''
         set -euo pipefail
 
-        mountpoint -q ${cfg.mountPoint} || mount ${cfg.mountPoint}
-        mkdir -p "$(dirname "${cfg.repository}")"
-
-        if ! restic --repo "${cfg.repository}" --password-file "${cfg.passwordFile}" snapshots >/dev/null 2>&1; then
-          restic --repo "${cfg.repository}" --password-file "${cfg.passwordFile}" init
+        if ! findmnt -rn --target '${cfg.mountPoint}' >/dev/null; then
+          echo '${cfg.mountPoint} is not mounted; refusing to run backup'
+          exit 1
         fi
 
-        restic --repo "${cfg.repository}" --password-file "${cfg.passwordFile}" backup \
-          --host gateway-vm \
-          --tag gateway-state \
-          ${escapeShellArgs cfg.paths}
+        export RESTIC_PASSWORD_FILE='${cfg.passwordFile}'
+        export RESTIC_REPOSITORY='${cfg.repository}'
+        export RESTIC_CACHE_DIR=/var/cache/restic-gateway-appsdata
 
-        restic --repo "${cfg.repository}" --password-file "${cfg.passwordFile}" forget \
+        if [ ! -r "$RESTIC_PASSWORD_FILE" ]; then
+          echo "$RESTIC_PASSWORD_FILE is not readable; refusing to run backup"
+          exit 1
+        fi
+
+        mkdir -p "$RESTIC_REPOSITORY"
+        if [ ! -e "$RESTIC_REPOSITORY/config" ]; then
+          restic init
+        else
+          restic snapshots \
+            --host gateway-vm \
+            --path '${cfg.source}' \
+            --tag '${cfg.tag}' \
+            --latest 1 \
+            --retry-lock 30m \
+            >/dev/null
+        fi
+
+        restic backup '${cfg.source}' \
           --host gateway-vm \
-          --tag gateway-state \
+          --one-file-system \
+          --exclude-caches \
+          --retry-lock 30m \
+          --tag '${cfg.tag}'
+
+        restic forget \
+          --host gateway-vm \
+          --path '${cfg.source}' \
           --prune \
+          --retry-lock 30m \
+          --tag '${cfg.tag}' \
           ${cfg.retention}
       '';
     };
@@ -152,31 +250,84 @@ in
     };
 
     systemd.services.gateway-state-restore-check = {
-      description = "Validate gateway-vm Restic state restore";
-      after = [ "${utils.escapeSystemdPath cfg.mountPoint}.mount" ];
-      wants = [ "${utils.escapeSystemdPath cfg.mountPoint}.mount" ];
+      description = "Validate gateway-vm /srv/appsdata Restic restore";
+      after = [
+        "network-online.target"
+        (mountUnit cfg.mountPoint)
+      ];
+      requires = [ (mountUnit cfg.mountPoint) ];
+      wants = [ "network-online.target" ];
       serviceConfig = {
+        CacheDirectory = "restic-gateway-appsdata";
         Type = "oneshot";
         User = "root";
       };
       path = [
         pkgs.coreutils
+        pkgs.findutils
         pkgs.restic
         pkgs.util-linux
       ];
       script = ''
         set -euo pipefail
 
-        mountpoint -q ${cfg.mountPoint} || mount ${cfg.mountPoint}
-        rm -rf "${cfg.restoreCheckTarget:?}"/*
-        restic --repo "${cfg.repository}" --password-file "${cfg.passwordFile}" restore latest \
+        if ! findmnt -rn --target '${cfg.mountPoint}' >/dev/null; then
+          echo '${cfg.mountPoint} is not mounted; refusing to run restore check'
+          exit 1
+        fi
+
+        export RESTIC_PASSWORD_FILE='${cfg.passwordFile}'
+        export RESTIC_REPOSITORY='${cfg.repository}'
+        export RESTIC_CACHE_DIR=/var/cache/restic-gateway-appsdata
+
+        if [ ! -r "$RESTIC_PASSWORD_FILE" ]; then
+          echo "$RESTIC_PASSWORD_FILE is not readable; refusing to run restore check"
+          exit 1
+        fi
+
+        if [ ! -e "$RESTIC_REPOSITORY/config" ]; then
+          echo "$RESTIC_REPOSITORY is not an initialized restic repository"
+          exit 1
+        fi
+
+        restore_parent='${cfg.restoreCheckTarget}'
+        case "$restore_parent" in
+          /tmp/*|/var/tmp/*) ;;
+          *)
+            echo "restore check target must be under /tmp or /var/tmp: $restore_parent"
+            exit 1
+            ;;
+        esac
+
+        rm -rf -- "$restore_parent"
+        install -d -m 0700 -o root -g root "$restore_parent"
+        restore_root="$(mktemp -d "$restore_parent/run.XXXXXX")"
+        cleanup() {
+          rm -rf -- "$restore_root"
+        }
+        trap cleanup EXIT
+
+        restic check --retry-lock 30m
+        restic restore latest \
           --host gateway-vm \
-          --tag gateway-state \
-          --target "${cfg.restoreCheckTarget}" \
-          --verify
-        test -d "${cfg.restoreCheckTarget}/var/lib/netbird"
-        test -d "${cfg.restoreCheckTarget}/var/lib/tailscale"
-        test -d "${cfg.restoreCheckTarget}/var/lib/private/technitium-dns-server"
+          --path '${cfg.source}' \
+          --tag '${cfg.tag}' \
+          --target "$restore_root" \
+          --verify \
+          --retry-lock 30m
+
+        restored_source="$restore_root${cfg.source}"
+        if [ ! -d "$restored_source" ]; then
+          echo "restore completed but $restored_source is missing"
+          exit 1
+        fi
+
+        for service_dir in netbird tailscale technitium-dns-server; do
+          if [ ! -d "$restored_source/$service_dir" ]; then
+            echo "restore completed but $restored_source/$service_dir is missing"
+            exit 1
+          fi
+        done
       '';
     };
   };

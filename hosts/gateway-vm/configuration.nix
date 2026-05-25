@@ -219,11 +219,11 @@ in
 
     Declared services:
       Traefik: traefik.service, ports 80 and optional 443
-      Technitium: technitium-dns-server.service, state /var/lib/private/technitium-dns-server
+      Technitium: technitium-dns-server.service, state /srv/appsdata/technitium-dns-server
       netboot.xyz: atftpd.service, TFTP root /srv/netbootxyz, boot file netboot.xyz.efi
-      NetBird: netbird.service, state /var/lib/netbird
-      Tailscale: tailscaled.service, state /var/lib/tailscale
-      State backups: gateway-state-backup.timer, repository /mnt/gateway-backups/restic/gateway-vm/state
+      NetBird: netbird.service, state /srv/appsdata/netbird
+      Tailscale: tailscaled.service, state /srv/appsdata/tailscale
+      State backups: gateway-state-backup.timer, repository /mnt/backup/restic/appdata/gateway-vm
 
     Internal routes:
       http://traefik.${domain}
@@ -261,12 +261,12 @@ in
       ss -lntu
 
     Recovery notes:
-      Restic backs up /var/lib/private/technitium-dns-server, /var/lib/netbird, and
-      /var/lib/tailscale to /mnt/gateway-backups/restic/gateway-vm/state using
-      /run/secrets/restic-password.
+      Restic backs up /srv/appsdata to /mnt/backup/restic/appdata/gateway-vm
+      using /run/secrets/restic-password. Technitium, NetBird, and Tailscale
+      keep upstream-compatible bind mounts from /srv/appsdata/<service_name>.
 
       Non-destructive validation:
-        mount /mnt/gateway-backups
+        mount /mnt/backup
         systemctl start gateway-state-backup.service
         systemctl start gateway-state-restore-check.service
         systemctl status gateway-state-backup.service gateway-state-restore-check.service
@@ -274,10 +274,11 @@ in
       Restore outline:
         1. Deploy gateway-vm once to create users, secrets, mounts, and units.
         2. Stop Technitium, NetBird, and Tailscale before replacing state.
-        3. Mount /mnt/gateway-backups.
-        4. Choose a gateway-vm/gateway-state snapshot ID.
+        3. Mount /mnt/backup.
+        4. Choose a gateway-vm/appsdata snapshot ID.
         5. Restore the snapshot to / with restic --verify.
-        6. Restart technitium-dns-server.service, netbird.service, and tailscaled.service.
+        6. Run systemd-tmpfiles --create.
+        7. Restart technitium-dns-server.service, netbird.service, and tailscaled.service.
 
       Keep auth keys in encrypted secrets only; do not write them into Nix
       files, generated configs, recovery notes, logs, or chat.

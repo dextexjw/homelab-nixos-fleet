@@ -174,12 +174,12 @@ Important host values:
 
 State paths:
 
-- `/var/lib/private/technitium-dns-server`
-- `/var/lib/netbird`
-- `/var/lib/tailscale`
+- `/srv/appsdata/technitium-dns-server`
+- `/srv/appsdata/netbird`
+- `/srv/appsdata/tailscale`
 
 Gateway state is backed up with Restic to
-`/mnt/gateway-backups/restic/gateway-vm/state`. The restore-check target is
+`/mnt/backup/restic/appdata/gateway-vm`. The restore-check target is
 `/var/tmp/gateway-state-restore-check`.
 
 ## gateway-vm Bootstrap
