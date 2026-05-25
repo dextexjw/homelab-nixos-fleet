@@ -1,0 +1,38 @@
+{
+  buildDotnetModule,
+  dotnetCorePackages,
+  fetchFromGitHub,
+  lib,
+}:
+
+buildDotnetModule rec {
+  pname = "technitium-dns-server-library";
+  version = "dns-server-v15.2.0";
+
+  src = fetchFromGitHub {
+    owner = "TechnitiumSoftware";
+    repo = "TechnitiumLibrary";
+    tag = version;
+    hash = "sha256-PC8j7JT4JiisGGfHORke63boLC4W1gLoaQQ3jPz5Qtc=";
+    name = "${pname}-${version}";
+  };
+
+  dotnet-sdk = dotnetCorePackages.sdk_10_0-bin;
+
+  nugetDeps = ./technitium-dns-server-library-nuget-deps.json;
+
+  projectFile = [
+    "TechnitiumLibrary.ByteTree/TechnitiumLibrary.ByteTree.csproj"
+    "TechnitiumLibrary.Net/TechnitiumLibrary.Net.csproj"
+    "TechnitiumLibrary.Security.OTP/TechnitiumLibrary.Security.OTP.csproj"
+  ];
+
+  meta = {
+    changelog = "https://github.com/TechnitiumSoftware/DnsServer/blob/master/CHANGELOG.md";
+    description = "Library for Authorative and Recursive DNS server for Privacy and Security";
+    homepage = "https://github.com/TechnitiumSoftware/DnsServer";
+    license = lib.licenses.gpl3Only;
+    mainProgram = "technitium-dns-server-library";
+    platforms = lib.platforms.linux;
+  };
+}

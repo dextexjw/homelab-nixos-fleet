@@ -11,6 +11,10 @@ let
   domain = host.domain;
   secretsFile = ../../secrets/secrets.yaml;
   secretsEnabled = builtins.pathExists secretsFile;
+  technitium-dns-server-library_15_2_0 = pkgs.callPackage ../../modules/gateway/technitium-dns-server-library.nix { };
+  technitium-dns-server_15_2_0 = pkgs.callPackage ../../modules/gateway/technitium-dns-server.nix {
+    technitium-dns-server-library = technitium-dns-server-library_15_2_0;
+  };
   traefik_3_7_1 = pkgs.stdenvNoCC.mkDerivation rec {
     pname = "traefik";
     version = "3.7.1";
@@ -139,6 +143,7 @@ in
       technitium = host.ip;
       traefik = host.ip;
     };
+    package = technitium-dns-server_15_2_0;
     serverDomain = host.fqdn;
     tlsCertificateDomain = "technitium.${domain}";
     tlsSubjectAltNames = [
@@ -268,7 +273,7 @@ in
 
     Declared services:
       Traefik: traefik.service, version 3.7.1, ingress ports 80 and optional 443, dashboard and metrics port 8080, JSON access logs in the service journal
-      Technitium: technitium-dns-server.service, state /srv/appsdata/technitium-dns-server, admin HTTP on ${host.ip}:5380 and http://technitium.${domain}
+      Technitium: technitium-dns-server.service, version 15.2.0, state /srv/appsdata/technitium-dns-server, admin HTTP on ${host.ip}:5380 and http://technitium.${domain}
       netboot.xyz: atftpd.service, TFTP root /srv/netbootxyz, boot file netboot.xyz.efi
       NetBird: disabled for now, state preserved at /srv/appsdata/netbird
       Tailscale: tailscaled.service, state /srv/appsdata/tailscale

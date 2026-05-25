@@ -109,6 +109,13 @@ in
       };
     };
 
+    package = mkOption {
+      type = types.package;
+      default = pkgs.technitium-dns-server;
+      defaultText = literalExpression "pkgs.technitium-dns-server";
+      description = "Technitium DNS Server package to run.";
+    };
+
     serverDomain = mkOption {
       type = types.str;
       default = config.networking.fqdnOrHostName;
@@ -148,6 +155,7 @@ in
     services.technitium-dns-server = {
       enable = true;
       openFirewall = true;
+      package = cfg.package;
       firewallTCPPorts = unique [
         cfg.dnsPort
         cfg.dnsOverTlsPort

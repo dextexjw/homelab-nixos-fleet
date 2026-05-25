@@ -56,8 +56,8 @@ Gateway Traefik module but should only be enabled after an OTLP collector
 endpoint is available.
 
 `gateway-vm` intentionally pins Traefik to the upstream `3.7.1` Linux AMD64
-release artifact while the rest of the fleet remains on the locked `nixpkgs`
-package set.
+release artifact and Technitium DNS to the upstream `15.2.0` source release
+while the rest of the fleet remains on the locked `nixpkgs` package set.
 
 Technitium serves the `home.arpa` zone and points `*.home.arpa` at
 `10.2.20.112` for Traefik ingress. Clients must use `10.2.20.112` as DNS, or
