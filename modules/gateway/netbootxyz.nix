@@ -55,6 +55,11 @@ in
       root = cfg.tftpRoot;
     };
 
+    systemd.services.atftpd = {
+      after = [ "network-online.target" ];
+      wants = [ "network-online.target" ];
+    };
+
     systemd.tmpfiles.rules = [
       "d ${cfg.tftpRoot} 0755 root root - -"
       "L+ ${cfg.tftpRoot}/${cfg.bootFile} - - - - ${pkgs.netbootxyz-efi}"

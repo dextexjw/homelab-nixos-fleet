@@ -78,6 +78,7 @@
           };
 
           imports = [
+            sops-nix.nixosModules.sops
             ./hosts/gateway-vm/configuration.nix
           ];
         };

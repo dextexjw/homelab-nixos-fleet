@@ -100,6 +100,13 @@ confirms the VM has a matching SOPS recipient before switching:
 scripts/deploy-media.sh
 ```
 
+For `gateway-vm`, the guarded deploy helper performs the same SOPS recipient
+check before switching:
+
+```sh
+scripts/deploy-gateway.sh
+```
+
 ## Service Access
 
 ### media-vm
@@ -150,6 +157,63 @@ Traefik routes are declared for:
 For netboot.xyz, configure the LAN DHCP server to point option 66 at
 `10.2.20.112` and option 67 at `netboot.xyz.efi`. `gateway-vm` serves TFTP but
 does not take over DHCP for the subnet.
+
+## gateway-vm Model
+
+`gateway-vm` is configured from `hosts/gateway-vm/configuration.nix` and
+`modules/gateway/`.
+
+Important host values:
+
+- FQDN: `gateway.home.arpa`
+- Gateway: `10.2.20.1`
+- DNS: `10.2.20.1`, `9.9.9.9`
+- Time zone: `America/New_York`
+- Admin user: `smoke`
+- VM disk: `/dev/sda`
+
+State paths:
+
+- `/var/lib/private/technitium-dns-server`
+- `/var/lib/netbird`
+- `/var/lib/tailscale`
+
+Gateway state is backed up with Restic to
+`/mnt/gateway-backups/restic/gateway-vm/state`. The restore-check target is
+`/var/tmp/gateway-state-restore-check`.
+
+## gateway-vm Bootstrap
+
+Use this flow after preparing a fresh `gateway-vm` install. The destructive
+`nixos-anywhere` VM install is managed outside this fleet repo before
+declarative deployment begins.
+
+```sh
+nix develop
+scripts/bootstrap-gateway-vm.sh run
+```
+
+The bootstrap phases are resumable:
+
+- `check-local-readiness`: verifies tools, encrypted secrets, `nix flake check`,
+  and `colmena build --on gateway-vm`.
+- `enable-vm-secret-access`: captures the gateway SSH host key, adds the age
+  recipient to `.sops.yaml`, and runs `sops updatekeys`.
+- `dry-activate-gateway-vm`: validates the activation plan with
+  `colmena apply --on gateway-vm dry-activate`.
+- `deploy-gateway-vm`: runs the guarded gateway deployment.
+- `verify-gateway-vm`: confirms hostnames, service health, listener ports,
+  Traefik routes, and Restic backup/restore validation.
+
+Individual phases:
+
+```sh
+scripts/bootstrap-gateway-vm.sh check-local-readiness
+scripts/bootstrap-gateway-vm.sh enable-vm-secret-access
+scripts/bootstrap-gateway-vm.sh dry-activate-gateway-vm
+scripts/bootstrap-gateway-vm.sh deploy-gateway-vm
+scripts/bootstrap-gateway-vm.sh verify-gateway-vm
+```
 
 ## media-vm Model
 
@@ -232,6 +296,12 @@ VM install or host key change, capture the host recipient:
 
 ```sh
 ssh smoke@10.2.20.113 'sudo ssh-keygen -y -f /etc/ssh/ssh_host_ed25519_key' | ssh-to-age
+```
+
+For `gateway-vm`, use:
+
+```sh
+ssh smoke@10.2.20.112 'sudo ssh-keygen -y -f /etc/ssh/ssh_host_ed25519_key' | ssh-to-age
 ```
 
 Add the printed `age1...` recipient to `.sops.yaml`, then rekey:
@@ -453,6 +523,7 @@ colmena exec --on gateway-vm -- systemctl status technitium-dns-server
 colmena exec --on gateway-vm -- systemctl status atftpd
 colmena exec --on gateway-vm -- systemctl status netbird
 colmena exec --on gateway-vm -- systemctl status tailscaled
+colmena exec --on gateway-vm -- systemctl status gateway-state-backup.timer
 ```
 
 Check SMB mounts on `media-vm`:

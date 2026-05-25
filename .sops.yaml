@@ -3,10 +3,11 @@ creation_rules:
   - # Rule: encrypt specific keys inside `secrets/secrets.yaml`
     path_regex: "secrets/secrets\\.yaml$"
     # Match specific top-level keys in the YAML to encrypt
-    encrypted_regex: "^(admin-password-hash|restic-password|smb-credentials|qbittorrent-webui-username|qbittorrent-webui-password)$"
+    encrypted_regex: "^(admin-password-hash|restic-password|smb-credentials|technitium-admin-password|qbittorrent-webui-username|qbittorrent-webui-password)$"
     # Age and SSH recipients for encryption. Folded for readability but preserved as a single value.
     age: >
       ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIATd/kn93HeAqaT5e8uW68n/JoWBesQkyruVNLsG3NDc khalid,
       age1aftkyfnfva6z3zvm725hj7rmqqpfw764hgsks2wzjne2mhdsdcwst398mf,
       age1e3gnv2pcwy8zhtprvqw582qtq65myw2aa63tzks4gx9u35gjy92qf4ku4v,
-      age14qf5mpr9c9tl8gqt5yex8vh9lcycags2hp4vexsrr7wgj5trvvuq5rhvuz
+      age14qf5mpr9c9tl8gqt5yex8vh9lcycags2hp4vexsrr7wgj5trvvuq5rhvuz,
+      age18waev2sm6xhla9wy0dy69v4zgs9m2sjt2p0qucclyjwryjdlq3ls8gx4dh

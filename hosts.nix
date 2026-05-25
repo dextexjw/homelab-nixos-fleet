@@ -5,6 +5,7 @@
 
 {
   gateway-vm = {
+    arch = "x86_64-linux";
     domain = "home.arpa";
     fqdn = "gateway.home.arpa";
     ip = "10.2.20.112";

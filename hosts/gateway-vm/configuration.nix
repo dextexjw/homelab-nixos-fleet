@@ -1,8 +1,15 @@
-{ lib, ... }:
+{
+  config,
+  lib,
+  ...
+}:
 
 let
   hosts = import ../../hosts.nix;
-  domain = hosts.gateway-vm.domain;
+  host = hosts.gateway-vm;
+  domain = host.domain;
+  secretsFile = ../../secrets/secrets.yaml;
+  secretsEnabled = builtins.pathExists secretsFile;
 in
 
 {
@@ -15,6 +22,7 @@ in
     ./hardware-configuration.nix
     ../../modules/gateway/netbird.nix
     ../../modules/gateway/netbootxyz.nix
+    ../../modules/gateway/state-backup.nix
     ../../modules/gateway/tailscale.nix
     ../../modules/gateway/technitium.nix
     ../../modules/gateway/traefik.nix
@@ -25,7 +33,40 @@ in
   # ============================================================================
 
   networking.hostName = "gateway-vm";
+  networking.domain = host.domain;
   users.motd = "gateway-vm: Traefik ingress, Technitium DNS, netboot.xyz, NetBird, and Tailscale";
+
+  # ============================================================================
+  # SECRETS
+  # ============================================================================
+
+  sops = lib.mkIf secretsEnabled {
+    defaultSopsFile = secretsFile;
+    age.sshKeyPaths = [ "/etc/ssh/ssh_host_ed25519_key" ];
+    secrets = {
+      admin-password-hash = {
+        neededForUsers = true;
+      };
+      restic-password = {
+        restartUnits = [ "gateway-state-backup.service" ];
+      };
+      smb-credentials = { };
+      technitium-admin-password = {
+        restartUnits = [ "technitium-dns-configure.service" ];
+      };
+    };
+  };
+
+  # ============================================================================
+  # USER MANAGEMENT
+  # ============================================================================
+
+  users.users.${host.user} = {
+    extraGroups = [
+      "systemd-journal"
+    ];
+    hashedPasswordFile = lib.mkIf secretsEnabled config.sops.secrets.admin-password-hash.path;
+  };
 
   # ============================================================================
   # SERVICES
@@ -37,7 +78,13 @@ in
 
   fleet.gateway.netbootxyz = {
     enable = true;
-    bindAddress = hosts.gateway-vm.ip;
+    bindAddress = host.ip;
+  };
+
+  fleet.gateway.stateBackup = {
+    enable = secretsEnabled;
+    credentialsFile = config.sops.secrets.smb-credentials.path;
+    passwordFile = config.sops.secrets.restic-password.path;
   };
 
   fleet.gateway.tailscale = {
@@ -45,7 +92,15 @@ in
   };
 
   fleet.gateway.technitium = {
+    adminPasswordFile = config.sops.secrets.technitium-admin-password.path;
     enable = true;
+    serverDomain = host.fqdn;
+    tlsCertificateDomain = "technitium.${domain}";
+    tlsSubjectAltNames = [
+      "DNS:technitium.${domain}"
+      "DNS:gateway-vm.${domain}"
+      "IP:${host.ip}"
+    ];
   };
 
   fleet.gateway.traefik = {
@@ -119,6 +174,24 @@ in
   # NETWORKING & FIREWALL
   # ============================================================================
 
+  networking.networkmanager.enable = lib.mkForce false;
+  networking.useDHCP = lib.mkForce false;
+  systemd.network = {
+    enable = true;
+    networks."10-lan" = {
+      matchConfig.Name = [
+        "en*"
+        "eth*"
+      ];
+      networkConfig = {
+        Address = "${host.ip}/24";
+        DNS = host.nameservers;
+        Domains = host.domain;
+        Gateway = host.gateway;
+      };
+    };
+  };
+
   networking.firewall.allowedTCPPorts = [ ];
 
   # ============================================================================
@@ -126,7 +199,7 @@ in
   # ============================================================================
 
   boot.loader.grub.enable = true;
-  boot.loader.grub.device = "/dev/sda";
+  boot.loader.grub.device = host.vm.disk;
   boot.loader.grub.useOSProber = true;
 
   # ============================================================================
@@ -146,10 +219,11 @@ in
 
     Declared services:
       Traefik: traefik.service, ports 80 and optional 443
-      Technitium: technitium-dns-server.service, state /var/lib/technitium-dns-server
+      Technitium: technitium-dns-server.service, state /var/lib/private/technitium-dns-server
       netboot.xyz: atftpd.service, TFTP root /srv/netbootxyz, boot file netboot.xyz.efi
       NetBird: netbird.service, state /var/lib/netbird
       Tailscale: tailscaled.service, state /var/lib/tailscale
+      State backups: gateway-state-backup.timer, repository /mnt/gateway-backups/restic/gateway-vm/state
 
     Internal routes:
       http://traefik.${domain}
@@ -183,20 +257,32 @@ in
       systemctl is-active atftpd.service
       systemctl is-active netbird.service
       systemctl is-active tailscaled.service
+      systemctl is-active gateway-state-backup.timer
       ss -lntu
 
     Recovery notes:
-      Technitium holds DNS zones and resolver configuration under
-      /var/lib/technitium-dns-server. Export DNS settings and zones from
-      Technitium before upgrades that may affect DNS state, keep exports
-      encrypted off-host, and restore them through the Technitium admin UI
-      after a rebuild.
+      Restic backs up /var/lib/private/technitium-dns-server, /var/lib/netbird, and
+      /var/lib/tailscale to /mnt/gateway-backups/restic/gateway-vm/state using
+      /run/secrets/restic-password.
 
-      NetBird and Tailscale enrollment state lives under /var/lib/netbird and
-      /var/lib/tailscale. Re-enroll the host after rebuild if runtime state is
-      unavailable. Keep auth keys in encrypted secrets only; do not write them
-      into Nix files or recovery notes.
+      Non-destructive validation:
+        mount /mnt/gateway-backups
+        systemctl start gateway-state-backup.service
+        systemctl start gateway-state-restore-check.service
+        systemctl status gateway-state-backup.service gateway-state-restore-check.service
+
+      Restore outline:
+        1. Deploy gateway-vm once to create users, secrets, mounts, and units.
+        2. Stop Technitium, NetBird, and Tailscale before replacing state.
+        3. Mount /mnt/gateway-backups.
+        4. Choose a gateway-vm/gateway-state snapshot ID.
+        5. Restore the snapshot to / with restic --verify.
+        6. Restart technitium-dns-server.service, netbird.service, and tailscaled.service.
+
+      Keep auth keys in encrypted secrets only; do not write them into Nix
+      files, generated configs, recovery notes, logs, or chat.
   '';
 
+  time.timeZone = host.timezone;
   system.stateVersion = "25.11";
 }
