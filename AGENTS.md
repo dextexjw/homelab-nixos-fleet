@@ -2,6 +2,17 @@
 
 Fleet is managed as a Nix flake and deployed with Colmena, so changes should always keep host reproducibility front of mind. Use this guide to stay consistent with the existing configuration style.
 
+`PRINCIPLES.md` is the mandatory service blueprint. Apply it when adding or changing production services, especially guarded deployment, upgrade, security, secrets, backup, restore, and verification standards.
+
+## Fleet Engineering Principles
+- Treat MediaVM as the reference architecture for production services.
+- Prefer declarative, reproducible Nix over manual VM state.
+- Keep host inventory, service modules, secrets shape, and recovery notes as the source of truth.
+- Design every service to be safely deployed, upgraded, verified, and rolled back or restored.
+- Keep secrets encrypted in Git and runtime-only on hosts; never place plaintext secrets in code, docs, logs, or generated configs.
+- Minimize network exposure and declare only the ports, users, permissions, and dependencies a service actually needs.
+- For stateful or security-sensitive services, include backup, restore, guarded deployment, and post-deploy validation from the start.
+
 ## Project Structure & Module Organization
 - `flake.nix` wires external inputs and exposes the Colmena hive plus the development shell.
 - `hosts.nix` is the single inventory; per-host configs live in `hosts/<name>/` alongside hardware profiles and shared logic in `hosts/common.nix`.

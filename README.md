@@ -11,6 +11,11 @@ The current shape is intentionally small:
 Treat it as the source of truth for my own hosts, services, secrets workflow,
 and recovery notes.
 
+The fleet-wide service standard is captured in
+`docs/fleet-engineering-principles.md`. New Gateway, Security, Identity, and
+other service modules should follow that blueprint before being treated as
+production-ready.
+
 ## Current Hosts
 
 | Host | IP | Tags | Role |
