@@ -1,6 +1,7 @@
 {
   config,
   lib,
+  pkgs,
   ...
 }:
 
@@ -62,6 +63,12 @@ let
       service = "api@internal";
     };
   };
+
+  metricsEntryPoint =
+    if cfg.metrics.entryPoint == null then
+      "dashboard"
+    else
+      cfg.metrics.entryPoint;
 in
 {
   # ============================================================================
@@ -70,6 +77,30 @@ in
 
   options.fleet.gateway.traefik = {
     enable = mkEnableOption "Traefik gateway ingress";
+
+    accessLog = {
+      enable = mkOption {
+        type = types.bool;
+        default = false;
+        description = "Enable Traefik request access logs.";
+      };
+
+      addInternals = mkOption {
+        type = types.bool;
+        default = false;
+        description = "Include Traefik internal services in access logs.";
+      };
+
+      format = mkOption {
+        type = types.enum [
+          "common"
+          "genericCLF"
+          "json"
+        ];
+        default = "json";
+        description = "Access log output format.";
+      };
+    };
 
     dashboard = {
       enable = mkOption {
@@ -127,6 +158,39 @@ in
       description = "Traefik log level.";
     };
 
+    package = mkOption {
+      type = types.package;
+      default = pkgs.traefik;
+      defaultText = literalExpression "pkgs.traefik";
+      description = "Traefik package to run on the gateway.";
+    };
+
+    metrics = {
+      enable = mkOption {
+        type = types.bool;
+        default = false;
+        description = "Enable Traefik Prometheus metrics.";
+      };
+
+      addInternals = mkOption {
+        type = types.bool;
+        default = false;
+        description = "Include Traefik internal services in metrics.";
+      };
+
+      addRoutersLabels = mkOption {
+        type = types.bool;
+        default = true;
+        description = "Add router labels to Prometheus metrics.";
+      };
+
+      entryPoint = mkOption {
+        type = types.nullOr types.str;
+        default = null;
+        description = "Entrypoint used to expose Prometheus metrics. Defaults to the dashboard entrypoint.";
+      };
+    };
+
     routes = mkOption {
       type = types.attrsOf (types.submodule {
         options = {
@@ -152,6 +216,39 @@ in
       default = { };
       description = "Named Traefik HTTP routes.";
     };
+
+    tracing = {
+      enable = mkOption {
+        type = types.bool;
+        default = false;
+        description = "Enable Traefik OpenTelemetry tracing.";
+      };
+
+      addInternals = mkOption {
+        type = types.bool;
+        default = false;
+        description = "Include Traefik internal services in traces.";
+      };
+
+      endpoint = mkOption {
+        type = types.nullOr types.str;
+        default = null;
+        description = "OTLP HTTP trace collector endpoint.";
+        example = "http://otel-collector.home.arpa:4318/v1/traces";
+      };
+
+      sampleRate = mkOption {
+        type = types.float;
+        default = 1.0;
+        description = "Proportion of requests to trace.";
+      };
+
+      serviceName = mkOption {
+        type = types.str;
+        default = "gateway-traefik";
+        description = "OpenTelemetry service name for Traefik traces.";
+      };
+    };
   };
 
   # ============================================================================
@@ -159,8 +256,20 @@ in
   # ============================================================================
 
   config = mkIf cfg.enable {
+    assertions = [
+      {
+        assertion = !cfg.tracing.enable || cfg.tracing.endpoint != null;
+        message = "fleet.gateway.traefik.tracing.endpoint must be set when tracing is enabled.";
+      }
+      {
+        assertion = !cfg.metrics.enable || cfg.dashboard.enable || cfg.metrics.entryPoint != null;
+        message = "fleet.gateway.traefik.metrics.entryPoint must be set when metrics are enabled without the dashboard entrypoint.";
+      }
+    ];
+
     services.traefik = {
       enable = true;
+      package = cfg.package;
 
       dynamicConfigOptions.http = {
         routers = dashboardRouters // mapAttrs' mkRouter cfg.routes;
@@ -183,6 +292,29 @@ in
         };
 
         log.level = cfg.logLevel;
+      }
+      // optionalAttrs cfg.accessLog.enable {
+        accessLog = {
+          addInternals = cfg.accessLog.addInternals;
+          format = cfg.accessLog.format;
+        };
+      }
+      // optionalAttrs cfg.metrics.enable {
+        metrics = {
+          addInternals = cfg.metrics.addInternals;
+          prometheus = {
+            addRoutersLabels = cfg.metrics.addRoutersLabels;
+            entryPoint = metricsEntryPoint;
+          };
+        };
+      }
+      // optionalAttrs cfg.tracing.enable {
+        tracing = {
+          addInternals = cfg.tracing.addInternals;
+          otlp.http.endpoint = cfg.tracing.endpoint;
+          sampleRate = cfg.tracing.sampleRate;
+          serviceName = cfg.tracing.serviceName;
+        };
       };
     };
 

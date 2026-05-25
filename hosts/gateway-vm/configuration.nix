@@ -1,6 +1,7 @@
 {
   config,
   lib,
+  pkgs,
   ...
 }:
 
@@ -10,6 +11,39 @@ let
   domain = host.domain;
   secretsFile = ../../secrets/secrets.yaml;
   secretsEnabled = builtins.pathExists secretsFile;
+  traefik_3_7_1 = pkgs.stdenvNoCC.mkDerivation rec {
+    pname = "traefik";
+    version = "3.7.1";
+
+    src = pkgs.fetchurl {
+      url = "https://github.com/traefik/traefik/releases/download/v${version}/traefik_v${version}_linux_amd64.tar.gz";
+      hash = "sha256-6SvPsD+h5qcMTnrU608WBJZ+b6PCHY52BaylQHpAFiw=";
+    };
+
+    unpackPhase = ''
+      runHook preUnpack
+
+      tar -xzf "$src"
+
+      runHook postUnpack
+    '';
+
+    installPhase = ''
+      runHook preInstall
+
+      install -Dm0755 traefik "$out/bin/traefik"
+
+      runHook postInstall
+    '';
+
+    meta = {
+      description = "Cloud native application proxy";
+      homepage = "https://traefik.io/";
+      license = lib.licenses.mit;
+      mainProgram = "traefik";
+      platforms = [ "x86_64-linux" ];
+    };
+  };
 in
 
 {
@@ -116,9 +150,12 @@ in
   };
 
   fleet.gateway.traefik = {
+    accessLog.enable = true;
     dashboard.domain = "traefik.${domain}";
     domain = domain;
     enable = true;
+    metrics.enable = true;
+    package = traefik_3_7_1;
     routes = {
       audiobookshelf = {
         description = "Audiobookshelf media library";
@@ -230,7 +267,7 @@ in
       *.${domain}
 
     Declared services:
-      Traefik: traefik.service, ingress ports 80 and optional 443, dashboard port 8080
+      Traefik: traefik.service, version 3.7.1, ingress ports 80 and optional 443, dashboard and metrics port 8080, JSON access logs in the service journal
       Technitium: technitium-dns-server.service, state /srv/appsdata/technitium-dns-server, admin HTTP on ${host.ip}:5380 and http://technitium.${domain}
       netboot.xyz: atftpd.service, TFTP root /srv/netbootxyz, boot file netboot.xyz.efi
       NetBird: disabled for now, state preserved at /srv/appsdata/netbird
@@ -239,6 +276,7 @@ in
 
     Internal routes:
       http://traefik.${domain}:8080/dashboard/
+      http://traefik.${domain}:8080/metrics
       http://technitium.${domain}
       http://jellyfin.${domain}
       http://audiobookshelf.${domain}

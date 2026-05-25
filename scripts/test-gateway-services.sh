@@ -118,6 +118,7 @@ done
 
 printf 'Checking Traefik and Technitium local HTTP endpoints...\n'
 wait_for_remote "Traefik dashboard route failed" "curl -fsS http://127.0.0.1:8080/dashboard/ >/dev/null"
+wait_for_remote "Traefik metrics endpoint failed" "curl -fsS http://127.0.0.1:8080/metrics | grep -q '^traefik_'"
 wait_for_remote "Technitium route failed" "curl -fsS -H 'Host: technitium.home.arpa' http://127.0.0.1/ >/dev/null"
 
 printf 'Running gateway state backup and restore validation...\n'

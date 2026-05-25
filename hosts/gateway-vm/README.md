@@ -37,6 +37,7 @@ Direct service ports:
 - Traefik HTTP ingress: `http://10.2.20.112`
 - Traefik HTTPS ingress: `https://10.2.20.112`
 - Traefik dashboard: `http://10.2.20.112:8080/dashboard/`
+- Traefik Prometheus metrics: `http://10.2.20.112:8080/metrics`
 - DNS: `10.2.20.112:53` over TCP and UDP
 - DNS-over-TLS: `10.2.20.112:853`
 - Technitium admin HTTP: `http://10.2.20.112:5380`
@@ -47,6 +48,16 @@ Direct service ports:
 
 Technitium admin HTTP is available directly at `http://10.2.20.112:5380` and
 through Traefik at `http://technitium.home.arpa/`.
+
+Traefik writes JSON access logs to the `traefik.service` journal. Prometheus
+metrics are exposed on the existing dashboard entrypoint at
+`http://10.2.20.112:8080/metrics`. OpenTelemetry tracing is declared in the
+Gateway Traefik module but should only be enabled after an OTLP collector
+endpoint is available.
+
+`gateway-vm` intentionally pins Traefik to the upstream `3.7.1` Linux AMD64
+release artifact while the rest of the fleet remains on the locked `nixpkgs`
+package set.
 
 Technitium serves the `home.arpa` zone and points `*.home.arpa` at
 `10.2.20.112` for Traefik ingress. Clients must use `10.2.20.112` as DNS, or
