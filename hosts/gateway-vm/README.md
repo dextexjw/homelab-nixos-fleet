@@ -159,6 +159,38 @@ scripts/bootstrap-gateway-vm.sh deploy-gateway-vm
 scripts/bootstrap-gateway-vm.sh verify-gateway-vm
 ```
 
+## Upgrade
+
+Use this flow for an already-running `gateway-vm`. It deploys the current repo
+state only; update and review `flake.lock` or host-local package pins
+separately before running it.
+
+```sh
+nix develop
+scripts/upgrade-gateway-vm.sh run
+```
+
+The wrapper runs these phases in order:
+
+- `check-upgrade-readiness`: verifies dev-shell tools, encrypted secrets, non-interactive SSH, `nix flake check`, and `colmena build --on gateway-vm`.
+- `create-pre-upgrade-backup`: starts a gateway appdata Restic backup and lists the latest matching snapshots.
+- `dry-activate-gateway-vm`: validates the activation plan with `colmena apply --on gateway-vm dry-activate`.
+- `deploy-gateway-vm`: runs the guarded `gateway-vm` deployment and normalizes the transient hostname.
+- `verify-gateway-vm`: confirms service health, listener ports, Traefik routes, DNS records, backup/restore validation, and tmpfiles declarations.
+
+The upgrade workflow never restores appdata automatically. Use the restore
+workflow only when recovering from a failed host or bad application state.
+
+The phases can also be run individually:
+
+```sh
+scripts/upgrade-gateway-vm.sh check-upgrade-readiness
+scripts/upgrade-gateway-vm.sh create-pre-upgrade-backup
+scripts/upgrade-gateway-vm.sh dry-activate-gateway-vm
+scripts/upgrade-gateway-vm.sh deploy-gateway-vm
+scripts/upgrade-gateway-vm.sh verify-gateway-vm
+```
+
 ## Deploy
 
 Use plain Colmena commands from inside `nix develop`.
