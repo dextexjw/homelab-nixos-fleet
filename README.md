@@ -185,7 +185,7 @@ backup, restore, or recovery behavior changes.
 - Keep secret values encrypted before committing.
 - Do not paste decrypted secrets into commits, issues, chat, logs, or shell history.
 - The base firewall opens SSH and service modules open their own required ports.
-- `gateway-vm` serves the declarative `home.arpa` zone in Technitium; clients
+- `gateway-vm` serves the declarative `.h` service zone in Technitium; clients
   must use `10.2.20.112` for DNS, or the LAN DNS/DHCP server must forward or
-  delegate `home.arpa` to `10.2.20.112`, before browser URLs like
-  `traefik.home.arpa` will resolve.
+  delegate `.h` to `10.2.20.112`, before browser URLs like `traefik.h` will
+  resolve. VM hostnames stay under `home.arpa` and are managed separately.

@@ -3,7 +3,6 @@ set -euo pipefail
 
 HOST="gateway-vm"
 HOST_IP="10.2.20.112"
-MEDIA_IP="10.2.20.113"
 REMOTE_USER="smoke"
 EXTERNAL_TCP_PORTS=(22 53 80 853 5380 8080 53443)
 UDP_PORTS=(53 69 41641)
@@ -101,7 +100,7 @@ else
   printf 'Skipping NetBird checks; netbird.service is not installed on %s\n' "$HOST"
 fi
 
-printf 'Checking home.arpa DNS records...\n'
+printf 'Checking .h service DNS records...\n'
 check_dns_record() {
   local name="$1"
   local expected_ip="$2"
@@ -120,14 +119,19 @@ check_dns_record() {
   done
 }
 
-check_dns_record traefik.home.arpa "$HOST_IP"
-check_dns_record technitium.home.arpa "$HOST_IP"
-check_dns_record jellyfin.home.arpa "$MEDIA_IP"
+check_dns_record audiobookshelf.h "$HOST_IP"
+check_dns_record jellyfin.h "$HOST_IP"
+check_dns_record kavita.h "$HOST_IP"
+check_dns_record technitium.h "$HOST_IP"
+check_dns_record traefik.h "$HOST_IP"
 
 printf 'Checking Traefik and Technitium local HTTP endpoints...\n'
+wait_for_remote "Traefik dashboard web route failed" "curl -fsS -H 'Host: traefik.h' http://127.0.0.1/dashboard/ >/dev/null"
 wait_for_remote "Traefik dashboard route failed" "curl -fsS http://127.0.0.1:8080/dashboard/ >/dev/null"
 wait_for_remote "Traefik metrics endpoint failed" "curl -fsS http://127.0.0.1:8080/metrics | grep -q '^traefik_'"
-wait_for_remote "Technitium route failed" "curl -fsS -H 'Host: technitium.home.arpa' http://127.0.0.1/ >/dev/null"
+wait_for_remote "Jellyfin route failed" "curl -fsS -o /dev/null -H 'Host: jellyfin.h' http://127.0.0.1/"
+wait_for_remote "Kavita route failed" "curl -fsS -o /dev/null -H 'Host: kavita.h' http://127.0.0.1/"
+wait_for_remote "Technitium route failed" "curl -fsS -H 'Host: technitium.h' http://127.0.0.1/ >/dev/null"
 
 printf 'Running gateway state backup and restore validation...\n'
 ssh_gateway_vm "sudo systemctl start gateway-state-backup.service" || die "gateway-state-backup.service failed"

@@ -9,6 +9,7 @@ let
   hosts = import ../../hosts.nix;
   host = hosts.gateway-vm;
   domain = host.domain;
+  serviceDomain = "h";
   secretsFile = ../../secrets/secrets.yaml;
   secretsEnabled = builtins.pathExists secretsFile;
   technitium-dns-server-library_15_2_0 = pkgs.callPackage ../../modules/gateway/technitium/library-package.nix { };
@@ -136,31 +137,27 @@ in
     adminPasswordFile = config.sops.secrets.technitium-admin-password.path;
     adminUsernameFile = config.sops.secrets.technitium-admin-username.path;
     enable = true;
+    localZone.domain = serviceDomain;
     localZone.aRecords = {
-      # Infrastructure services (local to gateway-vm)
-      gateway-vm = host.ip;
-      netbird = host.ip;
-      netbootxyz = host.ip;
+      # Gateway-routed service names resolve to Traefik.
+      audiobookshelf = host.ip;
+      bazarr = host.ip;
+      jellyfin = host.ip;
+      jellyseerr = host.ip;
+      kavita = host.ip;
+      prowlarr = host.ip;
+      qbittorrent = host.ip;
+      radarr = host.ip;
+      sabnzbd = host.ip;
+      sonarr = host.ip;
       technitium = host.ip;
       traefik = host.ip;
-
-      # Media services (hosted on media-vm)
-      audiobookshelf = hosts.media-vm.ip;
-      bazarr = hosts.media-vm.ip;
-      jellyfin = hosts.media-vm.ip;
-      jellyseerr = hosts.media-vm.ip;
-      kavita = hosts.media-vm.ip;
-      prowlarr = hosts.media-vm.ip;
-      qbittorrent = hosts.media-vm.ip;
-      radarr = hosts.media-vm.ip;
-      sabnzbd = hosts.media-vm.ip;
-      sonarr = hosts.media-vm.ip;
     };
     package = technitium-dns-server_15_2_0;
     serverDomain = host.fqdn;
-    tlsCertificateDomain = "technitium.${domain}";
+    tlsCertificateDomain = "technitium.${serviceDomain}";
     tlsSubjectAltNames = [
-      "DNS:technitium.${domain}"
+      "DNS:technitium.${serviceDomain}"
       "DNS:gateway-vm.${domain}"
       "IP:${host.ip}"
     ];
@@ -169,65 +166,66 @@ in
 
   fleet.gateway.traefik = {
     accessLog.enable = true;
-    dashboard.domain = "traefik.${domain}";
-    domain = domain;
+    dashboard.domain = "traefik.${serviceDomain}";
+    dashboard.webRoute.enable = true;
+    domain = serviceDomain;
     enable = true;
     metrics.enable = true;
     package = traefik_3_7_1;
     routes = {
       audiobookshelf = {
         description = "Audiobookshelf media library";
-        host = "audiobookshelf.${domain}";
+        host = "audiobookshelf.${serviceDomain}";
         url = "http://${hosts.media-vm.ip}:8000";
       };
       bazarr = {
         description = "Bazarr subtitle management";
-        host = "bazarr.${domain}";
+        host = "bazarr.${serviceDomain}";
         url = "http://${hosts.media-vm.ip}:6767";
       };
       jellyfin = {
         description = "Jellyfin media server";
-        host = "jellyfin.${domain}";
+        host = "jellyfin.${serviceDomain}";
         url = "http://${hosts.media-vm.ip}:8096";
       };
       jellyseerr = {
         description = "Jellyseerr requests";
-        host = "jellyseerr.${domain}";
+        host = "jellyseerr.${serviceDomain}";
         url = "http://${hosts.media-vm.ip}:5055";
       };
       kavita = {
         description = "Kavita library";
-        host = "kavita.${domain}";
+        host = "kavita.${serviceDomain}";
         url = "http://${hosts.media-vm.ip}:5000";
       };
       prowlarr = {
         description = "Prowlarr indexer management";
-        host = "prowlarr.${domain}";
+        host = "prowlarr.${serviceDomain}";
         url = "http://${hosts.media-vm.ip}:9696";
       };
       qbittorrent = {
         description = "qBittorrent downloads";
-        host = "qbittorrent.${domain}";
+        host = "qbittorrent.${serviceDomain}";
         url = "http://${hosts.media-vm.ip}:8080";
       };
       radarr = {
         description = "Radarr movie management";
-        host = "radarr.${domain}";
+        host = "radarr.${serviceDomain}";
         url = "http://${hosts.media-vm.ip}:7878";
       };
       sabnzbd = {
         description = "SABnzbd downloads";
-        host = "sabnzbd.${domain}";
+        host = "sabnzbd.${serviceDomain}";
         url = "http://${hosts.media-vm.ip}:8085";
       };
       sonarr = {
         description = "Sonarr TV management";
-        host = "sonarr.${domain}";
+        host = "sonarr.${serviceDomain}";
         url = "http://${hosts.media-vm.ip}:8989";
       };
       technitium = {
         description = "Technitium DNS administration and DoH endpoint";
-        host = "technitium.${domain}";
+        host = "technitium.${serviceDomain}";
         url = "http://127.0.0.1:5380";
       };
     };
@@ -281,31 +279,35 @@ in
     Tailscale. Prometheus, Grafana, Jenkins, nginx reverse proxy, and node
     exporter are intentionally not enabled on this host.
 
-    Homelab domain:
+    Homelab host domain:
       *.${domain}
+
+    Homelab service domain:
+      *.${serviceDomain}
 
     Declared services:
       Traefik: traefik.service, version 3.7.1, ingress ports 80 and optional 443, dashboard and metrics port 8080, JSON access logs in the service journal
-      Technitium: technitium-dns-server.service, version 15.2.0, state /srv/appsdata/technitium-dns-server, admin HTTP on ${host.ip}:5380 and http://technitium.${domain}
+      Technitium: technitium-dns-server.service, version 15.2.0, state /srv/appsdata/technitium-dns-server, admin HTTP on ${host.ip}:5380 and http://technitium.${serviceDomain}
       netboot.xyz: atftpd.service, TFTP root /srv/netbootxyz, boot file netboot.xyz.efi
       NetBird: disabled for now, state preserved at /srv/appsdata/netbird
       Tailscale: tailscaled.service, state /srv/appsdata/tailscale
       State backups: gateway-state-backup.timer, repository /mnt/backup/restic/appdata/gateway-vm
 
     Internal routes:
-      http://traefik.${domain}:8080/dashboard/
-      http://traefik.${domain}:8080/metrics
-      http://technitium.${domain}
-      http://jellyfin.${domain}
-      http://audiobookshelf.${domain}
-      http://kavita.${domain}
-      http://sonarr.${domain}
-      http://radarr.${domain}
-      http://prowlarr.${domain}
-      http://bazarr.${domain}
-      http://qbittorrent.${domain}
-      http://sabnzbd.${domain}
-      http://jellyseerr.${domain}
+      http://traefik.${serviceDomain}/dashboard/
+      http://traefik.${serviceDomain}:8080/dashboard/
+      http://traefik.${serviceDomain}:8080/metrics
+      http://technitium.${serviceDomain}
+      http://jellyfin.${serviceDomain}
+      http://audiobookshelf.${serviceDomain}
+      http://kavita.${serviceDomain}
+      http://sonarr.${serviceDomain}
+      http://radarr.${serviceDomain}
+      http://prowlarr.${serviceDomain}
+      http://bazarr.${serviceDomain}
+      http://qbittorrent.${serviceDomain}
+      http://sabnzbd.${serviceDomain}
+      http://jellyseerr.${serviceDomain}
 
     Network boot:
       Configure the LAN DHCP server to point option 66 at ${hosts.gateway-vm.ip}

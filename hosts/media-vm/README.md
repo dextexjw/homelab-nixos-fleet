@@ -10,7 +10,7 @@ Fleet inventory lives in `../../hosts.nix`. Host configuration lives in
 
 Important host values:
 
-- FQDN: `media.home.arpa`
+- FQDN: `media-vm.home.arpa`
 - IP: `10.2.20.113`
 - Gateway: `10.2.20.1`
 - DNS: `10.2.20.1`, `9.9.9.9`
@@ -45,16 +45,16 @@ firewall.
 
 Traefik routes are declared on `gateway-vm` for:
 
-- `jellyfin.home.arpa`
-- `audiobookshelf.home.arpa`
-- `kavita.home.arpa`
-- `sonarr.home.arpa`
-- `radarr.home.arpa`
-- `prowlarr.home.arpa`
-- `bazarr.home.arpa`
-- `qbittorrent.home.arpa`
-- `sabnzbd.home.arpa`
-- `jellyseerr.home.arpa`
+- `jellyfin.h`
+- `audiobookshelf.h`
+- `kavita.h`
+- `sonarr.h`
+- `radarr.h`
+- `prowlarr.h`
+- `bazarr.h`
+- `qbittorrent.h`
+- `sabnzbd.h`
+- `jellyseerr.h`
 
 ## State and Media Paths
 

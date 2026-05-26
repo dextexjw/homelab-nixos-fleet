@@ -10,7 +10,7 @@ Fleet inventory lives in `../../hosts.nix`. Host configuration lives in
 
 Important host values:
 
-- FQDN: `gateway.home.arpa`
+- FQDN: `gateway-vm.home.arpa`
 - IP: `10.2.20.112`
 - Gateway: `10.2.20.1`
 - DNS: `10.2.20.1`, `9.9.9.9`
@@ -47,7 +47,7 @@ Direct service ports:
 - Tailscale: `10.2.20.112:41641/udp`
 
 Technitium admin HTTP is available directly at `http://10.2.20.112:5380` and
-through Traefik at `http://technitium.home.arpa/`.
+through Traefik at `http://technitium.h/`.
 
 Traefik writes JSON access logs to the `traefik.service` journal. Prometheus
 metrics are exposed on the existing dashboard entrypoint at
@@ -59,38 +59,39 @@ endpoint is available.
 release artifact and Technitium DNS to the upstream `15.2.0` source release
 while the rest of the fleet remains on the locked `nixpkgs` package set.
 
-Technitium serves the `home.arpa` zone. Gateway-local names resolve to
-`10.2.20.112`, while media service names resolve to `media-vm` at
-`10.2.20.113`. Clients must use `10.2.20.112` as DNS, or the LAN DNS/DHCP
-server must forward/delegate `home.arpa` to `10.2.20.112`, for these names to
-resolve.
+Technitium serves the `.h` service zone. Service names resolve to
+`gateway-vm` at `10.2.20.112`, where Traefik routes them to their backends.
+VM hostnames stay under `home.arpa` and are managed outside this Gateway
+service zone. Clients must use `10.2.20.112` as DNS, or the LAN DNS/DHCP server
+must forward/delegate `.h` to `10.2.20.112`, for these names to resolve.
 
-If a browser shows `DNS_PROBE_FINISHED_NXDOMAIN` for a `home.arpa` name, confirm
+If a browser shows `DNS_PROBE_FINISHED_NXDOMAIN` for a `.h` name, confirm
 whether the client is asking Gateway DNS:
 
 ```sh
-dig technitium.home.arpa
-dig @10.2.20.112 technitium.home.arpa
+dig technitium.h
+dig @10.2.20.112 technitium.h
 ```
 
 The first command must query `10.2.20.112`, or the LAN DNS server must have a
-conditional forward/delegation for `home.arpa` to `10.2.20.112`. A temporary
-single-client workaround is adding `10.2.20.112 technitium.home.arpa` to that
-client's hosts file.
+conditional forward/delegation for `.h` to `10.2.20.112`. A temporary
+single-client workaround is adding `10.2.20.112 technitium.h` to that client's
+hosts file.
 
 Traefik ingress routes are declared for:
 
-- `technitium.home.arpa`
-- `jellyfin.home.arpa`
-- `audiobookshelf.home.arpa`
-- `kavita.home.arpa`
-- `sonarr.home.arpa`
-- `radarr.home.arpa`
-- `prowlarr.home.arpa`
-- `bazarr.home.arpa`
-- `qbittorrent.home.arpa`
-- `sabnzbd.home.arpa`
-- `jellyseerr.home.arpa`
+- `technitium.h`
+- `traefik.h`
+- `jellyfin.h`
+- `audiobookshelf.h`
+- `kavita.h`
+- `sonarr.h`
+- `radarr.h`
+- `prowlarr.h`
+- `bazarr.h`
+- `qbittorrent.h`
+- `sabnzbd.h`
+- `jellyseerr.h`
 
 For netboot.xyz, configure the LAN DHCP server to point option 66 at
 `10.2.20.112` and option 67 at `netboot.xyz.efi`. `gateway-vm` serves TFTP but

@@ -22,6 +22,8 @@ let
     else
       [ "web" ];
 
+  dashboardRule = "PathPrefix(`/api`) || PathPrefix(`/dashboard`)";
+
   mkName =
     name:
     replaceStrings
@@ -59,7 +61,13 @@ let
   dashboardRouters = optionalAttrs cfg.dashboard.enable {
     dashboard = {
       entryPoints = [ "dashboard" ];
-      rule = "PathPrefix(`/api`) || PathPrefix(`/dashboard`)";
+      rule = dashboardRule;
+      service = "api@internal";
+    };
+  } // optionalAttrs (cfg.dashboard.enable && cfg.dashboard.webRoute.enable) {
+    dashboard-web = {
+      entryPoints = [ "web" ];
+      rule = "Host(`${dashboardHost}`) && (${dashboardRule})";
       service = "api@internal";
     };
   };
@@ -113,7 +121,7 @@ in
         type = types.nullOr types.str;
         default = null;
         description = "Dashboard hostname. Defaults to traefik.<domain>.";
-        example = "traefik.home.arpa";
+        example = "traefik.h";
       };
 
       port = mkOption {
@@ -121,12 +129,20 @@ in
         default = 8080;
         description = "Dedicated Traefik dashboard and API entrypoint port.";
       };
+
+      webRoute = {
+        enable = mkOption {
+          type = types.bool;
+          default = false;
+          description = "Expose the dashboard and API paths on the HTTP web entrypoint using dashboard.domain.";
+        };
+      };
     };
 
     domain = mkOption {
       type = types.str;
       default = "home.arpa";
-      description = "Internal homelab domain used for generated defaults.";
+      description = "Internal service domain used for generated defaults.";
     };
 
     enableTLS = mkOption {
@@ -203,7 +219,7 @@ in
           host = mkOption {
             type = types.str;
             description = "Hostname matched by Traefik.";
-            example = "homepage.home.arpa";
+            example = "homepage.h";
           };
 
           url = mkOption {
@@ -234,7 +250,7 @@ in
         type = types.nullOr types.str;
         default = null;
         description = "OTLP HTTP trace collector endpoint.";
-        example = "http://otel-collector.home.arpa:4318/v1/traces";
+        example = "http://otel-collector.h:4318/v1/traces";
       };
 
       sampleRate = mkOption {
