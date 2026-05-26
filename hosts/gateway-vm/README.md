@@ -59,10 +59,11 @@ endpoint is available.
 release artifact and Technitium DNS to the upstream `15.2.0` source release
 while the rest of the fleet remains on the locked `nixpkgs` package set.
 
-Technitium serves the `home.arpa` zone and points `*.home.arpa` at
-`10.2.20.112` for Traefik ingress. Clients must use `10.2.20.112` as DNS, or
-the LAN DNS/DHCP server must forward/delegate `home.arpa` to `10.2.20.112`, for
-these names to resolve.
+Technitium serves the `home.arpa` zone. Gateway-local names resolve to
+`10.2.20.112`, while media service names resolve to `media-vm` at
+`10.2.20.113`. Clients must use `10.2.20.112` as DNS, or the LAN DNS/DHCP
+server must forward/delegate `home.arpa` to `10.2.20.112`, for these names to
+resolve.
 
 If a browser shows `DNS_PROBE_FINISHED_NXDOMAIN` for a `home.arpa` name, confirm
 whether the client is asking Gateway DNS:

@@ -3,6 +3,7 @@ set -euo pipefail
 
 HOST="gateway-vm"
 HOST_IP="10.2.20.112"
+MEDIA_IP="10.2.20.113"
 REMOTE_USER="smoke"
 EXTERNAL_TCP_PORTS=(22 53 80 853 5380 8080 53443)
 UDP_PORTS=(53 69 41641)
@@ -101,20 +102,27 @@ else
 fi
 
 printf 'Checking home.arpa DNS records...\n'
-for name in traefik.home.arpa technitium.home.arpa jellyfin.home.arpa; do
+check_dns_record() {
+  local name="$1"
+  local expected_ip="$2"
+
   for attempt in {1..60}; do
-    if dig @"$HOST_IP" "$name" +short | grep -Fxq "$HOST_IP"; then
-      printf '  %s resolves to %s\n' "$name" "$HOST_IP"
-      break
+    if dig @"$HOST_IP" "$name" +short | grep -Fxq "$expected_ip"; then
+      printf '  %s resolves to %s\n' "$name" "$expected_ip"
+      return 0
     fi
 
     if [[ "$attempt" == 60 ]]; then
-      die "$name does not resolve to $HOST_IP through gateway DNS"
+      die "$name does not resolve to $expected_ip through gateway DNS"
     fi
 
     sleep 1
   done
-done
+}
+
+check_dns_record traefik.home.arpa "$HOST_IP"
+check_dns_record technitium.home.arpa "$HOST_IP"
+check_dns_record jellyfin.home.arpa "$MEDIA_IP"
 
 printf 'Checking Traefik and Technitium local HTTP endpoints...\n'
 wait_for_remote "Traefik dashboard route failed" "curl -fsS http://127.0.0.1:8080/dashboard/ >/dev/null"
