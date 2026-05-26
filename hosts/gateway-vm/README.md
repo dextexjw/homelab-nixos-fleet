@@ -44,6 +44,7 @@ Direct service ports:
 - Technitium admin HTTP: `http://10.2.20.112:5380`
 - Technitium HTTPS and DNS-over-HTTPS: `https://10.2.20.112:53443`
 - Gluetun HTTP proxy: `http://10.2.20.112:8888`
+- Gluetun WebUI: local-only at `http://127.0.0.1:3000` through an SSH tunnel
 - netboot.xyz TFTP: `10.2.20.112:69/udp`, boot file `netboot.xyz.efi`
 - NetBird: disabled for now; state preserved at `/srv/appsdata/netbird`
 - Tailscale: `10.2.20.112:41641/udp`
@@ -65,7 +66,19 @@ while the rest of the fleet remains on the locked `nixpkgs` package set.
 Gluetun uses Private Internet Access over OpenVPN. The HTTP proxy is exposed on
 the LAN without separate proxy authentication; access is controlled by LAN
 reachability and the host firewall. PIA VPN port forwarding and fixed region
-selection are disabled for now.
+selection are disabled for now. Gluetun's control API is authenticated with a
+SOPS-managed API key and is only consumed by the WebUI sidecar inside Gluetun's
+container network namespace.
+
+The Gluetun WebUI runs as `podman-gluetun-webui.service`. It has no native UI
+login, so it is bound to localhost instead of being routed through Traefik or
+opened on the LAN. Use a tunnel from your workstation:
+
+```sh
+ssh -L 3000:127.0.0.1:3000 smoke@10.2.20.112
+```
+
+Then browse to `http://127.0.0.1:3000`.
 
 Technitium serves the `.h` service zone. Wildcard DNS resolves `*.h` to
 `gateway-vm` at `10.2.20.112`, where Traefik routes known hostnames to their
@@ -111,6 +124,7 @@ does not take over DHCP for the subnet.
 Required secrets:
 
 - `admin-password-hash`
+- `gluetun-control-api-key`
 - `gluetun-openvpn-username`
 - `gluetun-openvpn-password`
 - `smb-credentials`
@@ -269,7 +283,7 @@ Restore outline:
 4. Choose a `gateway-vm` appdata snapshot ID.
 5. Restore the snapshot to `/` with `restic --verify`.
 6. Run `systemd-tmpfiles --create`.
-7. Restart `technitium-dns-server.service`, `podman-gluetun.service`, and `tailscaled.service`; restart `netbird.service` too if NetBird is re-enabled.
+7. Restart `technitium-dns-server.service`, `podman-gluetun.service`, `podman-gluetun-webui.service`, and `tailscaled.service`; restart `netbird.service` too if NetBird is re-enabled.
 
 The same service and recovery model is generated on `gateway-vm` at
 `/etc/fleet/gateway-vm.md`. Keep this README and the generated recovery notes
@@ -283,6 +297,7 @@ Check service status through Colmena:
 colmena exec --on gateway-vm -- systemctl status traefik
 colmena exec --on gateway-vm -- systemctl status technitium-dns-server
 colmena exec --on gateway-vm -- systemctl status podman-gluetun
+colmena exec --on gateway-vm -- systemctl status podman-gluetun-webui
 colmena exec --on gateway-vm -- systemctl status atftpd
 colmena exec --on gateway-vm -- systemctl status tailscaled
 colmena exec --on gateway-vm -- systemctl status gateway-state-backup.timer

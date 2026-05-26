@@ -5,11 +5,13 @@ HOST="gateway-vm"
 HOST_IP="10.2.20.112"
 REMOTE_USER="smoke"
 EXTERNAL_TCP_PORTS=(22 53 80 853 5380 8080 8888 53443)
+LOCAL_TCP_PORTS=(3000)
 UDP_PORTS=(53 69 41641)
 KEY_UNITS=(
   traefik.service
   technitium-dns-server.service
   podman-gluetun.service
+  podman-gluetun-webui.service
   atftpd.service
   tailscaled.service
   gateway-state-backup.timer
@@ -86,6 +88,12 @@ for port in "${EXTERNAL_TCP_PORTS[@]}"; do
   printf '  tcp/%s listening\n' "$port"
 done
 
+printf 'Checking local-only TCP listeners...\n'
+for port in "${LOCAL_TCP_PORTS[@]}"; do
+  wait_for_remote "TCP $port is not listening on localhost" "sudo ss -ltn '( sport = :$port )' | grep -Eq '([[:space:]]|^)(127[.]0[.]0[.]1|\\[::1\\]):$port'"
+  printf '  localhost tcp/%s listening\n' "$port"
+done
+
 printf 'Checking listening UDP ports...\n'
 for port in "${UDP_PORTS[@]}"; do
   wait_for_remote "UDP $port is not listening" "sudo ss -lun '( sport = :$port )' | grep -q ':$port'"
@@ -137,6 +145,9 @@ wait_for_remote "Technitium route failed" "curl -fsS -H 'Host: technitium.h' htt
 
 printf 'Checking Gluetun LAN HTTP proxy...\n'
 wait_for_remote "Gluetun HTTP proxy failed" "curl -fsS --proxy http://${HOST_IP}:8888 https://ipinfo.io/ip >/dev/null"
+
+printf 'Checking Gluetun WebUI health...\n'
+wait_for_remote "Gluetun WebUI health failed" "curl -fsS http://127.0.0.1:3000/api/health >/dev/null"
 
 printf 'Running gateway state backup and restore validation...\n'
 ssh_gateway_vm "sudo systemctl start gateway-state-backup.service" || die "gateway-state-backup.service failed"

@@ -87,6 +87,13 @@ in
       admin-password-hash = {
         neededForUsers = true;
       };
+      gluetun-control-api-key = {
+        restartUnits = [
+          "gluetun-control-auth-config.service"
+          "podman-gluetun.service"
+          "podman-gluetun-webui.service"
+        ];
+      };
       gluetun-openvpn-password = {
         restartUnits = [ "podman-gluetun.service" ];
       };
@@ -123,9 +130,16 @@ in
 
   fleet.gateway.gluetun = {
     bindAddress = host.ip;
+    controlServer = {
+      apiKeyFile = config.sops.secrets.gluetun-control-api-key.path;
+      enable = true;
+    };
     enable = true;
     openvpnPasswordFile = config.sops.secrets.gluetun-openvpn-password.path;
     openvpnUsernameFile = config.sops.secrets.gluetun-openvpn-username.path;
+    webUi = {
+      enable = true;
+    };
   };
 
   fleet.gateway.netbird = {
@@ -291,7 +305,8 @@ in
     Declared services:
       Traefik: traefik.service, version 3.7.1, ingress ports 80 and optional 443, dashboard and metrics port 8080, JSON access logs in the service journal
       Technitium: technitium-dns-server.service, version 15.2.0, state /srv/appsdata/technitium-dns-server, admin HTTP on ${host.ip}:5380 and http://technitium.${serviceDomain}
-      Gluetun: podman-gluetun.service, PIA OpenVPN container, state /srv/appsdata/gluetun, unauthenticated LAN HTTP proxy on ${host.ip}:8888
+      Gluetun: podman-gluetun.service, PIA OpenVPN container, state /srv/appsdata/gluetun, unauthenticated LAN HTTP proxy on ${host.ip}:8888, authenticated control API internal to the container namespace
+      Gluetun WebUI: podman-gluetun-webui.service, local-only listener on 127.0.0.1:3000
       netboot.xyz: atftpd.service, TFTP root /srv/netbootxyz, boot file netboot.xyz.efi
       NetBird: disabled for now, state preserved at /srv/appsdata/netbird
       Tailscale: tailscaled.service, state /srv/appsdata/tailscale
@@ -312,6 +327,10 @@ in
       http://qbittorrent.${serviceDomain}
       http://sabnzbd.${serviceDomain}
       http://jellyseerr.${serviceDomain}
+
+    Local-only service URLs:
+      Gluetun WebUI: http://127.0.0.1:3000 after tunneling with:
+        ssh -L 3000:127.0.0.1:3000 ${host.user}@${host.ip}
 
     Network boot:
       Configure the LAN DHCP server to point option 66 at ${hosts.gateway-vm.ip}
@@ -340,6 +359,7 @@ in
       systemctl is-active traefik.service
       systemctl is-active technitium-dns-server.service
       systemctl is-active podman-gluetun.service
+      systemctl is-active podman-gluetun-webui.service
       systemctl is-active atftpd.service
       systemctl is-active tailscaled.service
       systemctl is-active gateway-state-backup.timer
@@ -372,7 +392,7 @@ in
         4. Choose a gateway-vm/appsdata snapshot ID.
         5. Restore the snapshot to / with restic --verify.
         6. Run systemd-tmpfiles --create.
-        7. Restart technitium-dns-server.service, podman-gluetun.service, netbird.service, and tailscaled.service.
+        7. Restart technitium-dns-server.service, podman-gluetun.service, podman-gluetun-webui.service, netbird.service, and tailscaled.service.
 
       Keep auth keys in encrypted secrets only; do not write them into Nix
       files, generated configs, recovery notes, logs, or chat.
