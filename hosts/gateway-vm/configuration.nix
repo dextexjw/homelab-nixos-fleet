@@ -11,8 +11,8 @@ let
   domain = host.domain;
   secretsFile = ../../secrets/secrets.yaml;
   secretsEnabled = builtins.pathExists secretsFile;
-  technitium-dns-server-library_15_2_0 = pkgs.callPackage ../../modules/gateway/technitium-dns-server-library.nix { };
-  technitium-dns-server_15_2_0 = pkgs.callPackage ../../modules/gateway/technitium-dns-server.nix {
+  technitium-dns-server-library_15_2_0 = pkgs.callPackage ../../modules/gateway/technitium/library-package.nix { };
+  technitium-dns-server_15_2_0 = pkgs.callPackage ../../modules/gateway/technitium/package.nix {
     technitium-dns-server-library = technitium-dns-server-library_15_2_0;
   };
   traefik_3_7_1 = pkgs.stdenvNoCC.mkDerivation rec {
@@ -62,7 +62,7 @@ in
     ../../modules/gateway/netbootxyz.nix
     ../../modules/gateway/state-backup.nix
     ../../modules/gateway/tailscale.nix
-    ../../modules/gateway/technitium.nix
+    ../../modules/gateway/technitium
     ../../modules/gateway/traefik.nix
   ];
 
@@ -318,6 +318,17 @@ in
       colmena build --on gateway-vm
       colmena apply --on gateway-vm dry-activate
       colmena apply --on gateway-vm switch
+
+    Upgrade workflow for an already-running host:
+      nix develop
+      scripts/upgrade-gateway-vm.sh run
+
+      The upgrade wrapper verifies local tools, encrypted secrets,
+      non-interactive SSH, nix flake check, and colmena build; creates a fresh
+      gateway appdata backup; dry-activates the host; runs the guarded switch;
+      and verifies services, listener ports, routes, DNS records, backup,
+      restore validation, and tmpfiles declarations. It never restores appdata
+      automatically.
 
     Post-deploy validation:
       systemctl is-active traefik.service

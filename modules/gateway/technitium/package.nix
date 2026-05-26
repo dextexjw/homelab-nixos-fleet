@@ -22,7 +22,7 @@ buildDotnetModule rec {
   dotnet-sdk = dotnetCorePackages.sdk_10_0-bin;
   dotnet-runtime = dotnetCorePackages.aspnetcore_10_0-bin;
 
-  nugetDeps = ./technitium-dns-server-nuget-deps.json;
+  nugetDeps = ./nuget-deps.json;
 
   projectFile = [ "DnsServerApp/DnsServerApp.csproj" ];
 
