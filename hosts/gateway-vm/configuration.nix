@@ -349,6 +349,14 @@ in
         systemctl start gateway-state-restore-check.service
         systemctl status gateway-state-backup.service gateway-state-restore-check.service
 
+      Consistency-first manual backup from the repo development shell:
+        scripts/gateway-vm/create-gateway-backup.sh
+
+        The script stops gateway-state-backup.timer, stops active stateful
+        Gateway services, runs the Restic backup and restore validation, lists
+        recent snapshots, restarts services and the timer, then runs Gateway
+        service validation.
+
       Restore outline:
         1. Deploy gateway-vm once to create users, secrets, mounts, and units.
         2. Stop Technitium, NetBird, and Tailscale before replacing state.

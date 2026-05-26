@@ -220,6 +220,17 @@ scripts/gateway-vm/deploy-gateway.sh
 - Password file: `/run/secrets/restic-password`
 - Non-destructive restore validation: `gateway-state-restore-check.service`
 
+Recommended consistency-first manual backup from the repo development shell:
+
+```sh
+scripts/gateway-vm/create-gateway-backup.sh
+```
+
+That script mounts `/mnt/backup`, stops the Gateway backup timer, stops active
+stateful Gateway services, runs the Restic backup and restore validation, lists
+recent snapshots, restarts services and the timer, then runs the normal Gateway
+service validation.
+
 Post-deploy validation:
 
 ```sh
@@ -229,7 +240,7 @@ scripts/gateway-vm/test-gateway-services.sh
 That script verifies service health, listener ports, Traefik routes, and
 gateway state backup/restore validation.
 
-Manual backup and restore validation on `gateway-vm`:
+Lower-level backup and restore validation on `gateway-vm` for debugging:
 
 ```sh
 mount /mnt/backup
