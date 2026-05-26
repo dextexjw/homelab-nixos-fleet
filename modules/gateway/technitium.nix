@@ -207,9 +207,14 @@ in
         fi
       '';
 
-      serviceConfig = mkIf (cfg.adminPasswordFile != null) {
-        LoadCredential = [ "technitium-admin-password:${cfg.adminPasswordFile}" ];
-      };
+      serviceConfig =
+        {
+          LogsDirectory = "technitium/dns";
+          LogsDirectoryMode = "0750";
+        }
+        // optionalAttrs (cfg.adminPasswordFile != null) {
+          LoadCredential = [ "technitium-admin-password:${cfg.adminPasswordFile}" ];
+        };
     };
 
     systemd.services.technitium-dns-configure = mkIf cfg.configureEncryptedDns {
