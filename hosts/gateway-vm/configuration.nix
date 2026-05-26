@@ -139,6 +139,7 @@ in
     openvpnUsernameFile = config.sops.secrets.gluetun-openvpn-username.path;
     webUi = {
       enable = true;
+      trustProxy = true;
     };
   };
 
@@ -209,6 +210,11 @@ in
         description = "Jellyseerr requests";
         host = "jellyseerr.${serviceDomain}";
         url = "http://${hosts.media-vm.ip}:5055";
+      };
+      gluetun = {
+        description = "Gluetun WebUI";
+        host = "gluetun.${serviceDomain}";
+        url = "http://127.0.0.1:3000";
       };
       kavita = {
         description = "Kavita library";
@@ -306,7 +312,7 @@ in
       Traefik: traefik.service, version 3.7.1, ingress ports 80 and optional 443, dashboard and metrics port 8080, JSON access logs in the service journal
       Technitium: technitium-dns-server.service, version 15.2.0, state /srv/appsdata/technitium-dns-server, admin HTTP on ${host.ip}:5380 and http://technitium.${serviceDomain}
       Gluetun: podman-gluetun.service, PIA OpenVPN container, state /srv/appsdata/gluetun, unauthenticated LAN HTTP proxy on ${host.ip}:8888, authenticated control API internal to the container namespace
-      Gluetun WebUI: podman-gluetun-webui.service, local-only listener on 127.0.0.1:3000
+      Gluetun WebUI: podman-gluetun-webui.service, local-only backend on 127.0.0.1:3000, routed through http://gluetun.${serviceDomain}
       netboot.xyz: atftpd.service, TFTP root /srv/netbootxyz, boot file netboot.xyz.efi
       NetBird: disabled for now, state preserved at /srv/appsdata/netbird
       Tailscale: tailscaled.service, state /srv/appsdata/tailscale
@@ -317,6 +323,7 @@ in
       http://traefik.${serviceDomain}:8080/dashboard/
       http://traefik.${serviceDomain}:8080/metrics
       http://technitium.${serviceDomain}
+      http://gluetun.${serviceDomain}
       http://jellyfin.${serviceDomain}
       http://audiobookshelf.${serviceDomain}
       http://kavita.${serviceDomain}
@@ -327,10 +334,6 @@ in
       http://qbittorrent.${serviceDomain}
       http://sabnzbd.${serviceDomain}
       http://jellyseerr.${serviceDomain}
-
-    Local-only service URLs:
-      Gluetun WebUI: http://127.0.0.1:3000 after tunneling with:
-        ssh -L 3000:127.0.0.1:3000 ${host.user}@${host.ip}
 
     Network boot:
       Configure the LAN DHCP server to point option 66 at ${hosts.gateway-vm.ip}

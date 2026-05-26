@@ -44,7 +44,7 @@ Direct service ports:
 - Technitium admin HTTP: `http://10.2.20.112:5380`
 - Technitium HTTPS and DNS-over-HTTPS: `https://10.2.20.112:53443`
 - Gluetun HTTP proxy: `http://10.2.20.112:8888`
-- Gluetun WebUI: local-only at `http://127.0.0.1:3000` through an SSH tunnel
+- Gluetun WebUI: `http://gluetun.h/`
 - netboot.xyz TFTP: `10.2.20.112:69/udp`, boot file `netboot.xyz.efi`
 - NetBird: disabled for now; state preserved at `/srv/appsdata/netbird`
 - Tailscale: `10.2.20.112:41641/udp`
@@ -71,14 +71,8 @@ SOPS-managed API key and is only consumed by the WebUI sidecar inside Gluetun's
 container network namespace.
 
 The Gluetun WebUI runs as `podman-gluetun-webui.service`. It has no native UI
-login, so it is bound to localhost instead of being routed through Traefik or
-opened on the LAN. Use a tunnel from your workstation:
-
-```sh
-ssh -L 3000:127.0.0.1:3000 smoke@10.2.20.112
-```
-
-Then browse to `http://127.0.0.1:3000`.
+login, so the direct backend listener stays bound to `127.0.0.1:3000` and is
+not opened on the LAN. Use the Traefik route at `http://gluetun.h/`.
 
 Technitium serves the `.h` service zone. Wildcard DNS resolves `*.h` to
 `gateway-vm` at `10.2.20.112`, where Traefik routes known hostnames to their
@@ -104,6 +98,7 @@ Traefik ingress routes are declared explicitly for:
 
 - `technitium.h`
 - `traefik.h`
+- `gluetun.h`
 - `jellyfin.h`
 - `audiobookshelf.h`
 - `kavita.h`

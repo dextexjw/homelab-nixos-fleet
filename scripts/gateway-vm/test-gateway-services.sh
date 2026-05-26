@@ -91,6 +91,7 @@ done
 printf 'Checking local-only TCP listeners...\n'
 for port in "${LOCAL_TCP_PORTS[@]}"; do
   wait_for_remote "TCP $port is not listening on localhost" "sudo ss -ltn '( sport = :$port )' | grep -Eq '([[:space:]]|^)(127[.]0[.]0[.]1|\\[::1\\]):$port'"
+  wait_for_remote "TCP $port is exposed on the LAN address" "! sudo ss -ltn '( sport = :$port )' | grep -Eq '([[:space:]]|^)(${HOST_IP}|0[.]0[.]0[.]0|\\*|\\[::\\]):$port'"
   printf '  localhost tcp/%s listening\n' "$port"
 done
 
@@ -129,16 +130,18 @@ check_dns_record() {
 }
 
 check_dns_record audiobookshelf.h "$HOST_IP"
+check_dns_record gluetun.h "$HOST_IP"
 check_dns_record jellyfin.h "$HOST_IP"
 check_dns_record kavita.h "$HOST_IP"
 check_dns_record technitium.h "$HOST_IP"
 check_dns_record traefik.h "$HOST_IP"
 check_dns_record wildcard-gateway-validation.h "$HOST_IP"
 
-printf 'Checking Traefik and Technitium local HTTP endpoints...\n'
+printf 'Checking Traefik, Technitium, and Gluetun WebUI local HTTP endpoints...\n'
 wait_for_remote "Traefik dashboard web route failed" "curl -fsS -H 'Host: traefik.h' http://127.0.0.1/dashboard/ >/dev/null"
 wait_for_remote "Traefik dashboard route failed" "curl -fsS http://127.0.0.1:8080/dashboard/ >/dev/null"
 wait_for_remote "Traefik metrics endpoint failed" "tmp=\$(mktemp); trap 'rm -f \"\$tmp\"' EXIT; curl -fsS -o \"\$tmp\" http://127.0.0.1:8080/metrics && grep -q '^traefik_' \"\$tmp\""
+wait_for_remote "Gluetun WebUI route failed" "curl -fsS -H 'Host: gluetun.h' http://127.0.0.1/api/health >/dev/null"
 wait_for_remote "Jellyfin route failed" "curl -fsS -o /dev/null -H 'Host: jellyfin.h' http://127.0.0.1/"
 wait_for_remote "Kavita route failed" "curl -fsS -o /dev/null -H 'Host: kavita.h' http://127.0.0.1/"
 wait_for_remote "Technitium route failed" "curl -fsS -H 'Host: technitium.h' http://127.0.0.1/ >/dev/null"
