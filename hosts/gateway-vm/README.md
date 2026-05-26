@@ -138,7 +138,7 @@ declarative deployment begins.
 
 ```sh
 nix develop
-scripts/bootstrap-gateway-vm.sh run
+scripts/gateway-vm/bootstrap-gateway-vm.sh run
 ```
 
 The bootstrap phases are resumable:
@@ -152,11 +152,11 @@ The bootstrap phases are resumable:
 Individual phases:
 
 ```sh
-scripts/bootstrap-gateway-vm.sh check-local-readiness
-scripts/bootstrap-gateway-vm.sh enable-vm-secret-access
-scripts/bootstrap-gateway-vm.sh dry-activate-gateway-vm
-scripts/bootstrap-gateway-vm.sh deploy-gateway-vm
-scripts/bootstrap-gateway-vm.sh verify-gateway-vm
+scripts/gateway-vm/bootstrap-gateway-vm.sh check-local-readiness
+scripts/gateway-vm/bootstrap-gateway-vm.sh enable-vm-secret-access
+scripts/gateway-vm/bootstrap-gateway-vm.sh dry-activate-gateway-vm
+scripts/gateway-vm/bootstrap-gateway-vm.sh deploy-gateway-vm
+scripts/gateway-vm/bootstrap-gateway-vm.sh verify-gateway-vm
 ```
 
 ## Upgrade
@@ -167,7 +167,7 @@ separately before running it.
 
 ```sh
 nix develop
-scripts/upgrade-gateway-vm.sh run
+scripts/gateway-vm/upgrade-gateway-vm.sh run
 ```
 
 The wrapper runs these phases in order:
@@ -184,11 +184,11 @@ workflow only when recovering from a failed host or bad application state.
 The phases can also be run individually:
 
 ```sh
-scripts/upgrade-gateway-vm.sh check-upgrade-readiness
-scripts/upgrade-gateway-vm.sh create-pre-upgrade-backup
-scripts/upgrade-gateway-vm.sh dry-activate-gateway-vm
-scripts/upgrade-gateway-vm.sh deploy-gateway-vm
-scripts/upgrade-gateway-vm.sh verify-gateway-vm
+scripts/gateway-vm/upgrade-gateway-vm.sh check-upgrade-readiness
+scripts/gateway-vm/upgrade-gateway-vm.sh create-pre-upgrade-backup
+scripts/gateway-vm/upgrade-gateway-vm.sh dry-activate-gateway-vm
+scripts/gateway-vm/upgrade-gateway-vm.sh deploy-gateway-vm
+scripts/gateway-vm/upgrade-gateway-vm.sh verify-gateway-vm
 ```
 
 ## Deploy
@@ -205,7 +205,7 @@ The guarded deploy helper checks local SOPS decryption and confirms the VM has
 a matching SOPS recipient before switching:
 
 ```sh
-scripts/deploy-gateway.sh
+scripts/gateway-vm/deploy-gateway.sh
 ```
 
 ## Backups and Restore
@@ -222,7 +222,7 @@ scripts/deploy-gateway.sh
 Post-deploy validation:
 
 ```sh
-scripts/test-gateway-services.sh
+scripts/gateway-vm/test-gateway-services.sh
 ```
 
 That script verifies service health, listener ports, Traefik routes, and

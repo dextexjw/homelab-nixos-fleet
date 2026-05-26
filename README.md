@@ -109,7 +109,7 @@ a matching SOPS recipient before switching:
 
 ```sh
 scripts/deploy-media.sh
-scripts/deploy-gateway.sh
+scripts/gateway-vm/deploy-gateway.sh
 ```
 
 See the host runbooks for bootstrap, upgrade, backup, restore, and validation

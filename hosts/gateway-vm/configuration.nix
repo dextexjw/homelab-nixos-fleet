@@ -321,7 +321,7 @@ in
 
     Upgrade workflow for an already-running host:
       nix develop
-      scripts/upgrade-gateway-vm.sh run
+      scripts/gateway-vm/upgrade-gateway-vm.sh run
 
       The upgrade wrapper verifies local tools, encrypted secrets,
       non-interactive SSH, nix flake check, and colmena build; creates a fresh

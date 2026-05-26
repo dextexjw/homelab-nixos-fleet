@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
+ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
 HOST="gateway-vm"
 HOST_IP="10.2.20.112"
 REMOTE_USER="smoke"
@@ -17,12 +17,12 @@ die() {
 usage() {
   cat <<EOF
 Usage:
-  scripts/upgrade-gateway-vm.sh run
-  scripts/upgrade-gateway-vm.sh check-upgrade-readiness
-  scripts/upgrade-gateway-vm.sh create-pre-upgrade-backup
-  scripts/upgrade-gateway-vm.sh dry-activate-gateway-vm
-  scripts/upgrade-gateway-vm.sh deploy-gateway-vm
-  scripts/upgrade-gateway-vm.sh verify-gateway-vm
+  scripts/gateway-vm/upgrade-gateway-vm.sh run
+  scripts/gateway-vm/upgrade-gateway-vm.sh check-upgrade-readiness
+  scripts/gateway-vm/upgrade-gateway-vm.sh create-pre-upgrade-backup
+  scripts/gateway-vm/upgrade-gateway-vm.sh dry-activate-gateway-vm
+  scripts/gateway-vm/upgrade-gateway-vm.sh deploy-gateway-vm
+  scripts/gateway-vm/upgrade-gateway-vm.sh verify-gateway-vm
 
 This orchestrates a safe gateway-vm upgrade for the current repo state. It does
 not update flake.lock and never restores appdata automatically.
@@ -111,12 +111,12 @@ phase_dry_activate_gateway_vm() {
 }
 
 phase_deploy_gateway_vm() {
-  "$ROOT/scripts/deploy-gateway.sh"
+  "$ROOT/scripts/gateway-vm/deploy-gateway.sh"
   ensure_vm_hostname
 }
 
 phase_verify_gateway_vm() {
-  "$ROOT/scripts/test-gateway-services.sh"
+  "$ROOT/scripts/gateway-vm/test-gateway-services.sh"
 
   printf 'Checking systemd-tmpfiles declarations...\n'
   ssh_gateway_vm "sudo systemd-tmpfiles --create" || die "systemd-tmpfiles check failed on $HOST_IP"

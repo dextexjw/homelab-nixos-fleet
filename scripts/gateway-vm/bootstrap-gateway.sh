@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
+ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
 HOST="gateway-vm"
 SECRETS="$ROOT/secrets/secrets.yaml"
 
@@ -50,5 +50,5 @@ Local readiness checks passed for $HOST.
 
 Next steps:
   1. Confirm non-interactive SSH for smoke works at 10.2.20.112.
-  2. Continue with: scripts/bootstrap-gateway-vm.sh run
+  2. Continue with: scripts/gateway-vm/bootstrap-gateway-vm.sh run
 MSG

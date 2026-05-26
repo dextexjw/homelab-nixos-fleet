@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
+ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
 HOST="gateway-vm"
 HOST_IP="10.2.20.112"
 REMOTE_USER="smoke"
@@ -14,12 +14,12 @@ die() {
 usage() {
   cat <<EOF
 Usage:
-  scripts/bootstrap-gateway-vm.sh run
-  scripts/bootstrap-gateway-vm.sh check-local-readiness
-  scripts/bootstrap-gateway-vm.sh enable-vm-secret-access
-  scripts/bootstrap-gateway-vm.sh dry-activate-gateway-vm
-  scripts/bootstrap-gateway-vm.sh deploy-gateway-vm
-  scripts/bootstrap-gateway-vm.sh verify-gateway-vm
+  scripts/gateway-vm/bootstrap-gateway-vm.sh run
+  scripts/gateway-vm/bootstrap-gateway-vm.sh check-local-readiness
+  scripts/gateway-vm/bootstrap-gateway-vm.sh enable-vm-secret-access
+  scripts/gateway-vm/bootstrap-gateway-vm.sh dry-activate-gateway-vm
+  scripts/gateway-vm/bootstrap-gateway-vm.sh deploy-gateway-vm
+  scripts/gateway-vm/bootstrap-gateway-vm.sh verify-gateway-vm
 
 This orchestrates the post-install gateway-vm bootstrap. Run the external
 nixos-anywhere install first, then confirm SSH works for ${REMOTE_USER}@${HOST_IP}.
@@ -59,11 +59,11 @@ ensure_vm_hostname() {
 }
 
 phase_check_local_readiness() {
-  "$ROOT/scripts/bootstrap-gateway.sh"
+  "$ROOT/scripts/gateway-vm/bootstrap-gateway.sh"
 }
 
 phase_enable_vm_secret_access() {
-  "$ROOT/scripts/update-gateway-sops-recipient.sh"
+  "$ROOT/scripts/gateway-vm/update-gateway-sops-recipient.sh"
 }
 
 phase_dry_activate_gateway_vm() {
@@ -73,12 +73,12 @@ phase_dry_activate_gateway_vm() {
 }
 
 phase_deploy_gateway_vm() {
-  "$ROOT/scripts/deploy-gateway.sh"
+  "$ROOT/scripts/gateway-vm/deploy-gateway.sh"
   ensure_vm_hostname
 }
 
 phase_verify_gateway_vm() {
-  "$ROOT/scripts/test-gateway-services.sh"
+  "$ROOT/scripts/gateway-vm/test-gateway-services.sh"
 }
 
 run_phase() {

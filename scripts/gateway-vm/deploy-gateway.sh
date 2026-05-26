@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
+ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
 HOST="gateway-vm"
 HOST_IP="10.2.20.112"
 REMOTE_USER="smoke"
@@ -64,7 +64,7 @@ fi
 [[ -n "$target_recipient" ]] || die "unable to read $HOST SOPS SSH host public key from $HOST_IP"
 
 if ! grep -Fq "$target_recipient" "$SECRETS"; then
-  die "$HOST cannot decrypt $SECRETS; run: scripts/update-gateway-sops-recipient.sh"
+  die "$HOST cannot decrypt $SECRETS; run: scripts/gateway-vm/update-gateway-sops-recipient.sh"
 fi
 
 ssh_gateway_vm 'sudo systemctl stop "mnt-gateway\x2dbackups.automount" "mnt-gateway\x2dbackups.mount" 2>/dev/null || true; sudo systemctl reset-failed "mnt-gateway\x2dbackups.automount" "mnt-gateway\x2dbackups.mount" 2>/dev/null || true'
