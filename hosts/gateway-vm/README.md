@@ -1,7 +1,7 @@
 # gateway-vm
 
-`gateway-vm` runs Traefik ingress, Technitium DNS, Gluetun, netboot.xyz,
-NetBird, and Tailscale.
+`gateway-vm` runs Traefik ingress, Homepage, Technitium DNS, Gluetun,
+netboot.xyz, NetBird, and Tailscale.
 
 Fleet inventory lives in `../../hosts.nix`. Host configuration lives in
 `configuration.nix` and imports service modules from `../../modules/gateway/`.
@@ -39,6 +39,7 @@ Service access:
 - Traefik HTTPS ingress: `https://10.2.20.112`
 - Traefik dashboard: `http://10.2.20.112:8080/dashboard/`
 - Traefik Prometheus metrics: `http://10.2.20.112:8080/metrics`
+- Homepage: `http://homepage.h/` through Traefik and `http://10.2.20.112:8082/` directly
 - DNS: `10.2.20.112:53` over TCP and UDP
 - DNS-over-TLS: `10.2.20.112:853`
 - Technitium admin HTTP: `http://10.2.20.112:5380`
@@ -51,6 +52,11 @@ Service access:
 
 Technitium admin HTTP is available directly at `http://10.2.20.112:5380` and
 through Traefik at `http://technitium.h/`.
+
+Homepage is declared in Nix and generated into `/etc/homepage-dashboard`. Its
+first-pass dashboard lists Gateway-owned `.h` routes, including MediaVM-backed
+routes that Traefik already proxies, plus direct Gateway IP URLs. It does not
+use service API widgets or mutable UI configuration in this pass.
 
 Traefik writes JSON access logs to the `traefik.service` journal. Prometheus
 metrics are exposed on the existing dashboard entrypoint at
@@ -97,6 +103,7 @@ hosts file.
 
 Traefik ingress routes are declared explicitly for:
 
+- `homepage.h`
 - `technitium.h`
 - `traefik.h`
 - `gluetun.h`
@@ -260,7 +267,8 @@ scripts/gateway-vm/test-gateway-services.sh
 ```
 
 That script verifies service health, listener ports, Traefik routes, Gluetun
-proxy egress, and gateway state backup/restore validation.
+proxy egress, Homepage generated config, and gateway state backup/restore
+validation.
 
 Lower-level backup and restore validation on `gateway-vm` for debugging:
 
@@ -279,7 +287,10 @@ Restore outline:
 4. Choose a `gateway-vm` appdata snapshot ID.
 5. Restore the snapshot to `/` with `restic --verify`.
 6. Run `systemd-tmpfiles --create`.
-7. Restart `technitium-dns-server.service`, `podman-gluetun.service`, `podman-gluetun-webui.service`, and `tailscaled.service`; restart `netbird.service` too if NetBird is re-enabled.
+7. Restart `homepage-dashboard.service`, `technitium-dns-server.service`, `podman-gluetun.service`, `podman-gluetun-webui.service`, and `tailscaled.service`; restart `netbird.service` too if NetBird is re-enabled.
+
+Homepage has no authoritative mutable app state in this fleet pass. Restore its
+dashboard by redeploying the Gateway Nix configuration.
 
 The same service and recovery model is generated on `gateway-vm` at
 `/etc/fleet/gateway-vm.md`. Keep this README and the generated recovery notes
@@ -291,6 +302,7 @@ Check service status through Colmena:
 
 ```sh
 colmena exec --on gateway-vm -- systemctl status traefik
+colmena exec --on gateway-vm -- systemctl status homepage-dashboard
 colmena exec --on gateway-vm -- systemctl status technitium-dns-server
 colmena exec --on gateway-vm -- systemctl status podman-gluetun
 colmena exec --on gateway-vm -- systemctl status podman-gluetun-webui

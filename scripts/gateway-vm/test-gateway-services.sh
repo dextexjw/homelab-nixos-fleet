@@ -4,11 +4,12 @@ set -euo pipefail
 HOST="gateway-vm"
 HOST_IP="10.2.20.112"
 REMOTE_USER="smoke"
-EXTERNAL_TCP_PORTS=(22 53 80 853 5380 8080 8888 53443)
+EXTERNAL_TCP_PORTS=(22 53 80 853 5380 8080 8082 8888 53443)
 LOCAL_TCP_PORTS=(3000)
 UDP_PORTS=(53 69 41641)
 KEY_UNITS=(
   traefik.service
+  homepage-dashboard.service
   technitium-dns-server.service
   podman-gluetun.service
   podman-gluetun-webui.service
@@ -131,6 +132,7 @@ check_dns_record() {
 
 check_dns_record audiobookshelf.h "$HOST_IP"
 check_dns_record gluetun.h "$HOST_IP"
+check_dns_record homepage.h "$HOST_IP"
 check_dns_record jellyfin.h "$HOST_IP"
 check_dns_record kavita.h "$HOST_IP"
 check_dns_record technitium.h "$HOST_IP"
@@ -141,10 +143,16 @@ printf 'Checking Traefik, Technitium, and Gluetun WebUI local HTTP endpoints...\
 wait_for_remote "Traefik dashboard web route failed" "curl -fsS -H 'Host: traefik.h' http://127.0.0.1/dashboard/ >/dev/null"
 wait_for_remote "Traefik dashboard route failed" "curl -fsS http://127.0.0.1:8080/dashboard/ >/dev/null"
 wait_for_remote "Traefik metrics endpoint failed" "tmp=\$(mktemp); trap 'rm -f \"\$tmp\"' EXIT; curl -fsS -o \"\$tmp\" http://127.0.0.1:8080/metrics && grep -q '^traefik_' \"\$tmp\""
+wait_for_remote "Homepage direct endpoint failed" "curl -fsS http://${HOST_IP}:8082/ >/dev/null"
+wait_for_remote "Homepage Traefik route failed" "curl -fsS -H 'Host: homepage.h' http://127.0.0.1/ >/dev/null"
 wait_for_remote "Gluetun WebUI route failed" "curl -fsS -H 'Host: gluetun.h' http://127.0.0.1/api/health >/dev/null"
 wait_for_remote "Jellyfin route failed" "curl -fsS -o /dev/null -H 'Host: jellyfin.h' http://127.0.0.1/"
 wait_for_remote "Kavita route failed" "curl -fsS -o /dev/null -H 'Host: kavita.h' http://127.0.0.1/"
 wait_for_remote "Technitium route failed" "curl -fsS -H 'Host: technitium.h' http://127.0.0.1/ >/dev/null"
+
+printf 'Checking Homepage generated config...\n'
+wait_for_remote "Homepage generated config is missing expected links" \
+  "grep -Fq 'homepage.h' /etc/homepage-dashboard/services.yaml && grep -Fq '10.2.20.112:8082' /etc/homepage-dashboard/services.yaml && grep -Fq 'jellyfin.h' /etc/homepage-dashboard/services.yaml && grep -Fq '10.2.20.113:8096' /etc/homepage-dashboard/services.yaml"
 
 printf 'Checking Gluetun LAN HTTP proxy...\n'
 wait_for_remote "Gluetun HTTP proxy failed" "curl -fsS --proxy http://${HOST_IP}:8888 https://ipinfo.io/ip >/dev/null"

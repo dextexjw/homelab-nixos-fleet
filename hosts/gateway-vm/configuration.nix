@@ -60,6 +60,7 @@ in
     ../common.nix
     ./hardware-configuration.nix
     ../../modules/gateway/gluetun.nix
+    ../../modules/gateway/homepage.nix
     ../../modules/gateway/netbird.nix
     ../../modules/gateway/netbootxyz.nix
     ../../modules/gateway/state-backup.nix
@@ -74,7 +75,7 @@ in
 
   networking.hostName = "gateway-vm";
   networking.domain = host.domain;
-  users.motd = "gateway-vm: Traefik ingress, Technitium DNS, Gluetun VPN proxy, netboot.xyz, NetBird, and Tailscale";
+  users.motd = "gateway-vm: Traefik ingress, Homepage, Technitium DNS, Gluetun VPN proxy, netboot.xyz, NetBird, and Tailscale";
 
   # ============================================================================
   # SECRETS
@@ -141,6 +142,121 @@ in
       enable = true;
       trustProxy = true;
     };
+  };
+
+  fleet.gateway.homepage = {
+    directAddress = host.ip;
+    enable = true;
+    host = "homepage.${serviceDomain}";
+    listenPort = 8082;
+    openFirewall = true;
+    serviceGroups = [
+      {
+        name = "Gateway";
+        services = [
+          {
+            name = "Homepage";
+            description = "Gateway service directory; backend http://${host.ip}:8082";
+            href = "http://homepage.${serviceDomain}/";
+          }
+          {
+            name = "Traefik";
+            description = "Gateway ingress dashboard; direct http://${host.ip}:8080/dashboard/";
+            href = "http://traefik.${serviceDomain}/dashboard/";
+          }
+          {
+            name = "Technitium";
+            description = "DNS administration and DoH endpoint; direct http://${host.ip}:5380";
+            href = "http://technitium.${serviceDomain}/";
+          }
+          {
+            name = "Gluetun";
+            description = "Gluetun WebUI; backend http://127.0.0.1:3000";
+            href = "http://gluetun.${serviceDomain}/";
+          }
+        ];
+      }
+      {
+        name = "Media via Gateway";
+        services = [
+          {
+            name = "Jellyfin";
+            description = "Media server; backend http://${hosts.media-vm.ip}:8096";
+            href = "http://jellyfin.${serviceDomain}/";
+          }
+          {
+            name = "Audiobookshelf";
+            description = "Audiobookshelf media library; backend http://${hosts.media-vm.ip}:8000";
+            href = "http://audiobookshelf.${serviceDomain}/";
+          }
+          {
+            name = "Kavita";
+            description = "Kavita library; backend http://${hosts.media-vm.ip}:5000";
+            href = "http://kavita.${serviceDomain}/";
+          }
+          {
+            name = "Sonarr";
+            description = "TV management; backend http://${hosts.media-vm.ip}:8989";
+            href = "http://sonarr.${serviceDomain}/";
+          }
+          {
+            name = "Radarr";
+            description = "Movie management; backend http://${hosts.media-vm.ip}:7878";
+            href = "http://radarr.${serviceDomain}/";
+          }
+          {
+            name = "Prowlarr";
+            description = "Indexer management; backend http://${hosts.media-vm.ip}:9696";
+            href = "http://prowlarr.${serviceDomain}/";
+          }
+          {
+            name = "Bazarr";
+            description = "Subtitle management; backend http://${hosts.media-vm.ip}:6767";
+            href = "http://bazarr.${serviceDomain}/";
+          }
+          {
+            name = "qBittorrent";
+            description = "Download client; backend http://${hosts.media-vm.ip}:8080";
+            href = "http://qbittorrent.${serviceDomain}/";
+          }
+          {
+            name = "SABnzbd";
+            description = "Usenet downloads; backend http://${hosts.media-vm.ip}:8085";
+            href = "http://sabnzbd.${serviceDomain}/";
+          }
+          {
+            name = "Jellyseerr";
+            description = "Media requests; backend http://${hosts.media-vm.ip}:5055";
+            href = "http://jellyseerr.${serviceDomain}/";
+          }
+        ];
+      }
+      {
+        name = "Direct Gateway URLs";
+        services = [
+          {
+            name = "Homepage Direct";
+            description = "Direct LAN Homepage endpoint; short URL http://homepage.${serviceDomain}/";
+            href = "http://${host.ip}:8082/";
+          }
+          {
+            name = "Traefik Dashboard Direct";
+            description = "Direct Gateway dashboard; metrics http://${host.ip}:8080/metrics";
+            href = "http://${host.ip}:8080/dashboard/";
+          }
+          {
+            name = "Technitium Direct HTTP";
+            description = "Direct Technitium admin HTTP; short URL http://technitium.${serviceDomain}/";
+            href = "http://${host.ip}:5380/";
+          }
+          {
+            name = "Technitium Direct HTTPS";
+            description = "Direct Technitium HTTPS and DNS-over-HTTPS listener";
+            href = "https://${host.ip}:53443/";
+          }
+        ];
+      }
+    ];
   };
 
   fleet.gateway.netbird = {
@@ -215,6 +331,11 @@ in
         description = "Gluetun WebUI";
         host = "gluetun.${serviceDomain}";
         url = "http://127.0.0.1:3000";
+      };
+      homepage = {
+        description = "Homepage service directory";
+        host = "homepage.${serviceDomain}";
+        url = "http://127.0.0.1:8082";
       };
       kavita = {
         description = "Kavita library";
@@ -298,7 +419,7 @@ in
     gateway-vm service model
     ========================
 
-    gateway-vm is scoped to Traefik, Technitium, Gluetun, netboot.xyz,
+    gateway-vm is scoped to Traefik, Homepage, Technitium, Gluetun, netboot.xyz,
     NetBird, and Tailscale. Prometheus, Grafana, Jenkins, nginx reverse proxy,
     and node exporter are intentionally not enabled on this host.
 
@@ -310,6 +431,7 @@ in
 
     Declared services:
       Traefik: traefik.service, version 3.7.1, ingress ports 80 and optional 443, dashboard and metrics port 8080, JSON access logs in the service journal
+      Homepage: homepage-dashboard.service, declarative service directory, LAN access on ${host.ip}:8082 and http://homepage.${serviceDomain}
       Technitium: technitium-dns-server.service, version 15.2.0, state /srv/appsdata/technitium-dns-server, admin HTTP on ${host.ip}:5380 and http://technitium.${serviceDomain}
       Gluetun: podman-gluetun.service, PIA OpenVPN container, state /srv/appsdata/gluetun, unauthenticated LAN HTTP proxy on ${host.ip}:8888, authenticated control API internal to the container namespace
       Gluetun WebUI: podman-gluetun-webui.service, LAN access through Traefik at http://gluetun.${serviceDomain}, backend only on 127.0.0.1:3000
@@ -322,6 +444,7 @@ in
       http://traefik.${serviceDomain}/dashboard/
       http://traefik.${serviceDomain}:8080/dashboard/
       http://traefik.${serviceDomain}:8080/metrics
+      http://homepage.${serviceDomain}
       http://technitium.${serviceDomain}
       http://gluetun.${serviceDomain}
       http://jellyfin.${serviceDomain}
@@ -360,6 +483,7 @@ in
 
     Post-deploy validation:
       systemctl is-active traefik.service
+      systemctl is-active homepage-dashboard.service
       systemctl is-active technitium-dns-server.service
       systemctl is-active podman-gluetun.service
       systemctl is-active podman-gluetun-webui.service
@@ -367,6 +491,8 @@ in
       systemctl is-active tailscaled.service
       systemctl is-active gateway-state-backup.timer
       curl -H 'Host: gluetun.${serviceDomain}' http://127.0.0.1/api/health
+      curl -H 'Host: homepage.${serviceDomain}' http://127.0.0.1/
+      curl http://${host.ip}:8082/
       ss -lntu
 
     Recovery notes:
@@ -374,6 +500,9 @@ in
       using /run/secrets/restic-password. Gluetun stores state directly under
       /srv/appsdata/gluetun; Technitium, NetBird, and Tailscale keep
       upstream-compatible bind mounts from /srv/appsdata/<service_name>.
+      Homepage service cards are generated from Nix under /etc/homepage-dashboard;
+      it has no authoritative mutable app state in this fleet pass and is restored
+      by redeploying gateway-vm.
 
       Non-destructive validation:
         mount /mnt/backup
@@ -396,7 +525,7 @@ in
         4. Choose a gateway-vm/appsdata snapshot ID.
         5. Restore the snapshot to / with restic --verify.
         6. Run systemd-tmpfiles --create.
-        7. Restart technitium-dns-server.service, podman-gluetun.service, podman-gluetun-webui.service, netbird.service, and tailscaled.service.
+        7. Restart homepage-dashboard.service, technitium-dns-server.service, podman-gluetun.service, podman-gluetun-webui.service, netbird.service, and tailscaled.service.
 
       Keep auth keys in encrypted secrets only; do not write them into Nix
       files, generated configs, recovery notes, logs, or chat.
