@@ -13,7 +13,7 @@ Important host values:
 - FQDN: `gateway-vm.home.arpa`
 - IP: `10.2.20.112`
 - Gateway: `10.2.20.1`
-- DNS: `10.2.20.1`, `9.9.9.9`
+- DNS: `10.2.20.1`
 - Time zone: `America/New_York`
 - Admin user: `smoke`
 - VM disk: `/dev/sda`
