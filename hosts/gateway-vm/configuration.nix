@@ -158,21 +158,25 @@ in
             name = "Homepage";
             description = "Gateway service directory; backend http://${host.ip}:8082";
             href = "http://homepage.${serviceDomain}/";
+            icon = "homepage.png";
           }
           {
             name = "Traefik";
             description = "Gateway ingress dashboard; direct http://${host.ip}:8080/dashboard/";
             href = "http://traefik.${serviceDomain}/dashboard/";
+            icon = "traefik.png";
           }
           {
             name = "Technitium";
             description = "DNS administration and DoH endpoint; direct http://${host.ip}:5380";
             href = "http://technitium.${serviceDomain}/";
+            icon = "technitium.png";
           }
           {
             name = "Gluetun";
             description = "Gluetun WebUI; backend http://127.0.0.1:3000";
             href = "http://gluetun.${serviceDomain}/";
+            icon = "gluetun.png";
           }
         ];
       }
@@ -183,51 +187,61 @@ in
             name = "Jellyfin";
             description = "Media server; backend http://${hosts.media-vm.ip}:8096";
             href = "http://jellyfin.${serviceDomain}/";
+            icon = "jellyfin.png";
           }
           {
             name = "Audiobookshelf";
             description = "Audiobookshelf media library; backend http://${hosts.media-vm.ip}:8000";
             href = "http://audiobookshelf.${serviceDomain}/";
+            icon = "audiobookshelf.png";
           }
           {
             name = "Kavita";
             description = "Kavita library; backend http://${hosts.media-vm.ip}:5000";
             href = "http://kavita.${serviceDomain}/";
+            icon = "kavita.png";
           }
           {
             name = "Sonarr";
             description = "TV management; backend http://${hosts.media-vm.ip}:8989";
             href = "http://sonarr.${serviceDomain}/";
+            icon = "sonarr.png";
           }
           {
             name = "Radarr";
             description = "Movie management; backend http://${hosts.media-vm.ip}:7878";
             href = "http://radarr.${serviceDomain}/";
+            icon = "radarr.png";
           }
           {
             name = "Prowlarr";
             description = "Indexer management; backend http://${hosts.media-vm.ip}:9696";
             href = "http://prowlarr.${serviceDomain}/";
+            icon = "prowlarr.png";
           }
           {
             name = "Bazarr";
             description = "Subtitle management; backend http://${hosts.media-vm.ip}:6767";
             href = "http://bazarr.${serviceDomain}/";
+            icon = "bazarr.png";
           }
           {
             name = "qBittorrent";
             description = "Download client; backend http://${hosts.media-vm.ip}:8080";
             href = "http://qbittorrent.${serviceDomain}/";
+            icon = "qbittorrent.png";
           }
           {
             name = "SABnzbd";
             description = "Usenet downloads; backend http://${hosts.media-vm.ip}:8085";
             href = "http://sabnzbd.${serviceDomain}/";
+            icon = "sabnzbd.png";
           }
           {
             name = "Jellyseerr";
             description = "Media requests; backend http://${hosts.media-vm.ip}:5055";
             href = "http://jellyseerr.${serviceDomain}/";
+            icon = "jellyseerr.png";
           }
         ];
       }
@@ -238,21 +252,25 @@ in
             name = "Homepage Direct";
             description = "Direct LAN Homepage endpoint; short URL http://homepage.${serviceDomain}/";
             href = "http://${host.ip}:8082/";
+            icon = "homepage.png";
           }
           {
             name = "Traefik Dashboard Direct";
             description = "Direct Gateway dashboard; metrics http://${host.ip}:8080/metrics";
             href = "http://${host.ip}:8080/dashboard/";
+            icon = "traefik.png";
           }
           {
             name = "Technitium Direct HTTP";
             description = "Direct Technitium admin HTTP; short URL http://technitium.${serviceDomain}/";
             href = "http://${host.ip}:5380/";
+            icon = "technitium.png";
           }
           {
             name = "Technitium Direct HTTPS";
             description = "Direct Technitium HTTPS and DNS-over-HTTPS listener";
             href = "https://${host.ip}:53443/";
+            icon = "technitium.png";
           }
         ];
       }
