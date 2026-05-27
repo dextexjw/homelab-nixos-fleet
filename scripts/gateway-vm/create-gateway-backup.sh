@@ -41,7 +41,7 @@ cleanup() {
 
   printf 'Restarting Gateway services and backup timer...\n'
   if [ "${#stopped_services[@]}" -gt 0 ]; then
-    systemctl start "${stopped_services[@]}"
+    systemctl start --no-block "${stopped_services[@]}"
     restart_status="$?"
     if [ "$status" -eq 0 ] && [ "$restart_status" -ne 0 ]; then
       status="$restart_status"
@@ -87,7 +87,7 @@ printf 'Stopping gateway-state-backup.timer...\n'
 systemctl stop gateway-state-backup.timer
 
 printf 'Stopping stateful Gateway services for a consistent snapshot...\n'
-for unit in podman-gluetun-webui.service podman-gluetun.service technitium-dns-server.service tailscaled.service netbird.service; do
+for unit in podman-gluetun-webui.service podman-gluetun.service podman-netbootxyz.service technitium-dns-server.service tailscaled.service netbird.service; do
   if ! unit_exists "$unit"; then
     printf '  %s not installed; skipping\n' "$unit"
     continue

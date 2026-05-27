@@ -13,7 +13,6 @@ KEY_UNITS=(
   technitium-dns-server.service
   podman-gluetun.service
   podman-gluetun-webui.service
-  atftpd.service
   tailscaled.service
   gateway-state-backup.timer
 )
@@ -77,6 +76,13 @@ if ssh_gateway_vm "systemctl list-unit-files 'netbird.service' --no-legend 2>/de
   KEY_UNITS+=(netbird.service)
 fi
 
+CHECK_NETBOOTXYZ=0
+if ssh_gateway_vm "systemctl list-unit-files 'podman-netbootxyz.service' --no-legend 2>/dev/null | grep -q '^podman-netbootxyz[.]service'"; then
+  CHECK_NETBOOTXYZ=1
+  KEY_UNITS+=(podman-netbootxyz.service)
+  LOCAL_TCP_PORTS+=(3001 8083)
+fi
+
 printf 'Checking gateway units...\n'
 for unit in "${KEY_UNITS[@]}"; do
   wait_for_remote "$unit is not active" "systemctl is-active --quiet '$unit'"
@@ -135,6 +141,9 @@ check_dns_record gluetun.h "$HOST_IP"
 check_dns_record homepage.h "$HOST_IP"
 check_dns_record jellyfin.h "$HOST_IP"
 check_dns_record kavita.h "$HOST_IP"
+if [[ "$CHECK_NETBOOTXYZ" == 1 ]]; then
+  check_dns_record netbootxyz.h "$HOST_IP"
+fi
 check_dns_record technitium.h "$HOST_IP"
 check_dns_record traefik.h "$HOST_IP"
 check_dns_record wildcard-gateway-validation.h "$HOST_IP"
@@ -150,9 +159,22 @@ wait_for_remote "Jellyfin route failed" "curl -fsS -o /dev/null -H 'Host: jellyf
 wait_for_remote "Kavita route failed" "curl -fsS -o /dev/null -H 'Host: kavita.h' http://127.0.0.1/"
 wait_for_remote "Technitium route failed" "curl -fsS -H 'Host: technitium.h' http://127.0.0.1/ >/dev/null"
 
+if [[ "$CHECK_NETBOOTXYZ" == 1 ]]; then
+  wait_for_remote "netboot.xyz Traefik route failed" "curl -fsS -H 'Host: netbootxyz.h' http://127.0.0.1/ >/dev/null"
+
+  printf 'Checking netboot.xyz TFTP boot file fetch...\n'
+  wait_for_remote "netboot.xyz TFTP boot file fetch failed" \
+    "tmp=\$(mktemp); trap 'rm -f \"\$tmp\"' EXIT; atftp --get --remote-file netboot.xyz.efi --local-file \"\$tmp\" --tftp-timeout 5 ${HOST_IP} >/dev/null && test -s \"\$tmp\""
+else
+  printf 'Skipping netboot.xyz container checks; podman-netbootxyz.service is not installed on %s\n' "$HOST"
+fi
+
 printf 'Checking Homepage generated config...\n'
-wait_for_remote "Homepage generated config is missing expected links" \
-  "grep -Fq 'homepage.h' /etc/homepage-dashboard/services.yaml && grep -Fq '10.2.20.112:8082' /etc/homepage-dashboard/services.yaml && grep -Fq 'jellyfin.h' /etc/homepage-dashboard/services.yaml && grep -Fq '10.2.20.113:8096' /etc/homepage-dashboard/services.yaml"
+homepage_checks="grep -Fq 'homepage.h' /etc/homepage-dashboard/services.yaml && grep -Fq '10.2.20.112:8082' /etc/homepage-dashboard/services.yaml && grep -Fq 'jellyfin.h' /etc/homepage-dashboard/services.yaml && grep -Fq '10.2.20.113:8096' /etc/homepage-dashboard/services.yaml"
+if [[ "$CHECK_NETBOOTXYZ" == 1 ]]; then
+  homepage_checks="$homepage_checks && grep -Fq 'netbootxyz.h' /etc/homepage-dashboard/services.yaml"
+fi
+wait_for_remote "Homepage generated config is missing expected links" "$homepage_checks"
 
 printf 'Checking Gluetun LAN HTTP proxy...\n'
 wait_for_remote "Gluetun HTTP proxy failed" "curl -fsS --proxy http://${HOST_IP}:8888 https://ipinfo.io/ip >/dev/null"
