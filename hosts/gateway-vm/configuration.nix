@@ -272,28 +272,28 @@ in
         ];
       }
       {
-        name = "Direct URLs";
+        name = "Productivity";
         services = [
           {
-            name = "Homepage Direct";
-            description = "Direct LAN Homepage endpoint\nShort URL http://homepage.${serviceDomain}/";
+            name = "Homepage Direct IP";
+            description = "Direct LAN Homepage endpoint\nURL http://homepage.${serviceDomain}/";
             href = "http://${host.ip}:8082/";
             icon = "homepage.png";
           }
           {
-            name = "Traefik Dashboard Direct";
-            description = "Direct Gateway dashboard\nMetrics http://${host.ip}:8080/metrics";
+            name = "Traefik Dashboard IP";
+            description = "Metrics\nhttp://${host.ip}:8080/metrics";
             href = "http://${host.ip}:8080/dashboard/";
             icon = "traefik.png";
           }
           {
-            name = "Technitium Direct HTTP";
-            description = "Direct Technitium admin HTTP\nShort URL http://technitium.${serviceDomain}/";
+            name = "Technitium Direct IP";
+            description = "http://technitium.${serviceDomain}/";
             href = "http://${host.ip}:5380/";
             icon = "technitium.png";
           }
           {
-            name = "Technitium Direct HTTPS";
+            name = "Technitium Direct IP";
             description = "Direct Technitium HTTPS\nDNS-over-HTTPS listener";
             href = "https://${host.ip}:53443/";
             icon = "technitium.png";
