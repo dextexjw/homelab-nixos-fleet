@@ -13,7 +13,7 @@ Important host values:
 - FQDN: `media-vm.home.arpa`
 - IP: `10.2.20.113`
 - Gateway: `10.2.20.1`
-- DNS: `10.2.20.1`, `9.9.9.9`
+- DNS: `10.2.20.1`
 - Time zone: `America/New_York`
 - Admin user: `smoke`
 - VM disk: `/dev/sda`
@@ -37,11 +37,10 @@ Incomplete downloader files live on local VM storage at
 | Radarr | `http://10.2.20.113:7878` |
 | Sonarr | `http://10.2.20.113:8989` |
 | Prowlarr | `http://10.2.20.113:9696` |
-| Readarr | `http://10.2.20.113:8787` |
 | Bazarr | `http://10.2.20.113:6767` |
 | qBittorrent through MediaVM Gluetun | `http://10.2.20.113:8080` |
 | MediaVM Gluetun WebUI | `http://10.2.20.113:3001` |
-| SABnzbd | `http://10.2.20.113:8085` |
+| SABnzbd through MediaVM Gluetun | `http://10.2.20.113:8085` |
 | Seerr | `http://10.2.20.113:5055` |
 
 FlareSolverr listens on `8191` for app integration and is not opened in the
@@ -55,7 +54,6 @@ Traefik routes are declared on `gateway-vm` for:
 - `sonarr.h`
 - `radarr.h`
 - `prowlarr.h`
-- `readarr.h`
 - `bazarr.h`
 - `qbittorrent.h`
 - `sabnzbd.h`
@@ -65,10 +63,11 @@ MediaVM Gluetun WebUI is available directly at `10.2.20.113:3001` and through
 Gateway Traefik at `http://media-gluetun.h/`. The Gateway Homepage card monitors
 `http://10.2.20.113:3001/api/health`.
 
-qBittorrent has no host-published ports of its own. `podman-media-gluetun`
-publishes `8080/tcp` for qBittorrent WebUI and `3001/tcp` for Gluetun WebUI.
-`podman-media-qbittorrent` runs with `--network=container:media-gluetun`, so if
-MediaVM Gluetun is offline, qBittorrent networking is unavailable.
+qBittorrent and SABnzbd have no host-published ports of their own.
+`podman-media-gluetun` publishes `8080/tcp` for qBittorrent WebUI, `8085/tcp`
+for SABnzbd, and `3001/tcp` for Gluetun WebUI. `podman-media-qbittorrent` and
+`podman-media-sabnzbd` run with `--network=container:media-gluetun`, so if
+MediaVM Gluetun is offline, downloader networking is unavailable.
 
 ## State and Media Paths
 
@@ -80,7 +79,6 @@ Appdata paths:
 - `/srv/appsdata/radarr`
 - `/srv/appsdata/sonarr`
 - `/srv/appsdata/prowlarr`
-- `/srv/appsdata/readarr`
 - `/srv/appsdata/bazarr`
 - `/srv/appsdata/qbittorrent`
 - `/srv/appsdata/sabnzbd`
@@ -285,19 +283,20 @@ scripts/test-media-backup.sh
 ```
 
 That script mounts `/mnt/backups` if needed, starts a backup, starts the restore
-check, verifies the timer, lists the latest tagged snapshots, checks the
-MediaVM Gluetun/qBittorrent units, confirms qBittorrent and Gluetun WebUI are
-reachable, and verifies qBittorrent has no host-published ports of its own.
+check, verifies the timer, lists the latest tagged snapshots, checks the MediaVM
+Gluetun/qBittorrent/SABnzbd units, confirms qBittorrent, SABnzbd, and Gluetun
+WebUI are reachable, and verifies the downloader sidecars have no host-published
+ports of their own.
 
-To run the disruptive kill-switch check after changing Gluetun or qBittorrent
+To run the disruptive kill-switch check after changing Gluetun or downloader
 networking:
 
 ```sh
 scripts/test-media-backup.sh --include-kill-switch
 ```
 
-That briefly stops `podman-media-gluetun.service`, confirms qBittorrent stops
-or becomes unreachable, confirms qBittorrent cannot start while Gluetun is
+That briefly stops `podman-media-gluetun.service`, confirms qBittorrent and
+SABnzbd stop or become unreachable, confirms they cannot start while Gluetun is
 runtime-masked, and then restarts the MediaVM Gluetun stack.
 
 Manual backup inspection on `media-vm`:
@@ -323,7 +322,7 @@ Destructive full restore outline:
 
 ```sh
 systemctl stop appsdata-backup.timer
-systemctl stop jellyfin audiobookshelf kavita radarr sonarr prowlarr readarr bazarr podman-media-gluetun-webui podman-media-qbittorrent podman-media-gluetun sabnzbd seerr flaresolverr
+systemctl stop jellyfin audiobookshelf kavita radarr sonarr prowlarr bazarr podman-media-gluetun-webui podman-media-qbittorrent podman-media-sabnzbd podman-media-gluetun seerr flaresolverr
 ```
 
 2. Mount the backup share.
@@ -362,7 +361,7 @@ RESTIC_REPOSITORY=/mnt/backups/restic/appdata/media-stack-vm \
 systemd-tmpfiles --create
 systemctl restart media-gluetun-control-auth-config.service
 systemctl restart kavita-token-key.service
-systemctl start jellyfin audiobookshelf kavita radarr sonarr prowlarr readarr bazarr podman-media-gluetun podman-media-qbittorrent podman-media-gluetun-webui sabnzbd seerr flaresolverr
+systemctl start jellyfin audiobookshelf kavita radarr sonarr prowlarr bazarr podman-media-gluetun podman-media-qbittorrent podman-media-sabnzbd podman-media-gluetun-webui seerr flaresolverr
 systemctl start appsdata-backup.timer
 systemctl start appsdata-restore-check.service
 ```
@@ -379,6 +378,7 @@ Check service status through Colmena:
 colmena exec --on media-vm -- systemctl status jellyfin
 colmena exec --on media-vm -- systemctl status podman-media-gluetun
 colmena exec --on media-vm -- systemctl status podman-media-qbittorrent
+colmena exec --on media-vm -- systemctl status podman-media-sabnzbd
 colmena exec --on media-vm -- systemctl status podman-media-gluetun-webui
 colmena exec --on media-vm -- systemctl status appsdata-backup.timer
 ```

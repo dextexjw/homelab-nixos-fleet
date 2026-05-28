@@ -115,7 +115,10 @@ in
       networkConfig = {
         Address = "${host.ip}/24";
         DNS = host.nameservers;
-        Domains = host.domain;
+        Domains = [
+          host.domain
+          "~${host.domain}"
+        ];
         Gateway = host.gateway;
       };
     };

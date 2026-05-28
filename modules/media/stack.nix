@@ -67,6 +67,7 @@ let
   ) cfg.smb.mountOptions;
   gluetunInputPorts =
     optional gluetunCfg.qbittorrentWebUi.enable cfg.ports.qbittorrent
+    ++ [ cfg.ports.sabnzbd ]
     ++ optional gluetunCfg.webUi.enable gluetunCfg.webUi.port;
 
   appsdataDirs = [
@@ -281,7 +282,6 @@ in
         prowlarr = 9696;
         qbittorrent = 8080;
         radarr = 7878;
-        readarr = 8787;
         sabnzbd = 8085;
         seerr = 5055;
         sonarr = 8989;
@@ -301,11 +301,17 @@ in
       description = "Pinned qBittorrent OCI image reference.";
     };
 
+    sabnzbd.image = mkOption {
+      type = types.str;
+      default = "lscr.io/linuxserver/sabnzbd@sha256:6b392fce45ed587ba7213259fbce6f9f725b157b746b36ec53d3f08ee415602e";
+      description = "Pinned SABnzbd OCI image reference.";
+    };
+
     gluetun = {
       enable = mkOption {
         type = types.bool;
         default = true;
-        description = "Route MediaVM qBittorrent through a dedicated Gluetun container.";
+        description = "Route MediaVM download clients through a dedicated Gluetun container.";
       };
 
       bindAddress = mkOption {
@@ -502,6 +508,13 @@ in
       home = "${appdata}/qbittorrent";
     };
 
+    users.users.sabnzbd = {
+      isSystemUser = true;
+      uid = 38;
+      group = "media";
+      home = "${appdata}/sabnzbd";
+    };
+
     users.users.seerr = {
       isSystemUser = true;
       group = "media";
@@ -640,27 +653,12 @@ in
       settings.server.port = cfg.ports.prowlarr;
     };
 
-    services.readarr = {
-      enable = true;
-      user = "readarr";
-      group = "media";
-      dataDir = "${appdata}/readarr";
-      settings.server.port = cfg.ports.readarr;
-    };
-
     services.bazarr = {
       enable = true;
       user = "bazarr";
       group = "media";
       dataDir = "${appdata}/bazarr";
       listenPort = cfg.ports.bazarr;
-    };
-
-    services.sabnzbd = {
-      enable = true;
-      user = "sabnzbd";
-      group = "media";
-      configFile = "${appdata}/sabnzbd/sabnzbd.ini";
     };
 
     services.seerr = {
@@ -704,6 +702,9 @@ in
           optionals gluetunCfg.qbittorrentWebUi.enable [
             "${gluetunCfg.bindAddress}:${toString cfg.ports.qbittorrent}:${toString cfg.ports.qbittorrent}/tcp"
           ]
+          ++ [
+            "${gluetunCfg.bindAddress}:${toString cfg.ports.sabnzbd}:${toString cfg.ports.sabnzbd}/tcp"
+          ]
           ++ optionals gluetunCfg.webUi.enable [
             "${gluetunCfg.bindAddress}:${toString gluetunCfg.webUi.port}:${toString gluetunCfg.webUi.port}/tcp"
           ];
@@ -742,6 +743,30 @@ in
 
         volumes = [
           "${appdata}/qbittorrent:/config"
+          "${cfg.downloads.incomplete}:${cfg.downloads.incomplete}"
+          "${mediaRoot}:${mediaRoot}"
+        ];
+
+        extraOptions = [
+          "--network=container:media-gluetun"
+        ];
+      };
+
+      media-sabnzbd = {
+        image = cfg.sabnzbd.image;
+        pull = "missing";
+
+        dependsOn = [ "media-gluetun" ];
+
+        environment = {
+          PGID = toString config.users.groups.media.gid;
+          PUID = toString config.users.users.sabnzbd.uid;
+          TZ = config.time.timeZone;
+          UMASK = "0077";
+        };
+
+        volumes = [
+          "${appdata}/sabnzbd:/config"
           "${cfg.downloads.incomplete}:${cfg.downloads.incomplete}"
           "${mediaRoot}:${mediaRoot}"
         ];
@@ -833,12 +858,8 @@ in
       prowlarr.requires = [ "${utils.escapeSystemdPath "/var/lib/private/prowlarr"}.mount" ];
       prowlarr.after = [ "${utils.escapeSystemdPath "/var/lib/private/prowlarr"}.mount" ];
       prowlarr.serviceConfig.StateDirectoryMode = mkForce "0700";
-      readarr.requires = [ "${utils.escapeSystemdPath mediaRoot}.mount" ];
-      readarr.after = [ "${utils.escapeSystemdPath mediaRoot}.mount" ];
       bazarr.requires = [ "${utils.escapeSystemdPath mediaRoot}.mount" ];
       bazarr.after = [ "${utils.escapeSystemdPath mediaRoot}.mount" ];
-      sabnzbd.requires = [ "${utils.escapeSystemdPath mediaRoot}.mount" ];
-      sabnzbd.after = [ "${utils.escapeSystemdPath mediaRoot}.mount" ];
 
       media-gluetun-control-auth-config = {
         description = "Generate MediaVM Gluetun control server authentication config";
@@ -917,6 +938,24 @@ EOF
         };
       };
 
+      podman-media-sabnzbd = {
+        after = [
+          "podman-media-gluetun.service"
+          "${utils.escapeSystemdPath mediaRoot}.mount"
+        ];
+        bindsTo = [ "podman-media-gluetun.service" ];
+        partOf = [ "podman-media-gluetun.service" ];
+        preStart = "${sabnzbdConfigScript}";
+        requires = [
+          "podman-media-gluetun.service"
+          "${utils.escapeSystemdPath mediaRoot}.mount"
+        ];
+        serviceConfig = {
+          RestartSec = "30s";
+          UMask = "0077";
+        };
+      };
+
       podman-media-gluetun-webui = mkIf gluetunCfg.webUi.enable {
         after = [
           "media-gluetun-control-auth-config.service"
@@ -929,11 +968,6 @@ EOF
           "podman-media-gluetun.service"
         ];
         serviceConfig.RestartSec = "30s";
-      };
-
-      sabnzbd = {
-        preStart = "${sabnzbdConfigScript}";
-        serviceConfig.StateDirectory = mkForce "";
       };
 
       seerr = {
@@ -1161,7 +1195,6 @@ EOF
       cfg.ports.prowlarr
       cfg.ports.qbittorrent
       cfg.ports.radarr
-      cfg.ports.readarr
       cfg.ports.sabnzbd
       cfg.ports.seerr
       cfg.ports.sonarr
@@ -1177,7 +1210,7 @@ EOF
 
       Restore /srv/appsdata after reinstalling this NixOS host, before first
       use of Jellyfin, Audiobookshelf, Kavita, ARR apps, qBittorrent, Gluetun,
-      SABnzbd, or Seerr. Readarr stores state in /srv/appsdata/readarr. The first activation creates /run/secrets/restic-password,
+      SABnzbd, or Seerr. The first activation creates /run/secrets/restic-password,
       /mnt/backups, Restic, users/groups, and service units needed for restore.
 
       Media files under /mnt/media are mounted from SMB and are not included in
@@ -1192,11 +1225,13 @@ EOF
       Seerr uses /srv/appsdata/seerr. On deploy or restore, legacy
       /srv/appsdata/jellyseerr data is moved there when the new path is empty.
 
-      qBittorrent runs as podman-media-qbittorrent.service in the
-      media-gluetun container network namespace. It has no host-published ports
-      of its own; podman-media-gluetun.service publishes qBittorrent WebUI on
-      10.2.20.113:8080 and Gluetun WebUI on 10.2.20.113:3001. If Gluetun is
-      offline, qBittorrent networking is unavailable. Gluetun state is stored in
+      qBittorrent and SABnzbd run as podman-media-qbittorrent.service and
+      podman-media-sabnzbd.service in the media-gluetun container network
+      namespace. They have no host-published ports of their own;
+      podman-media-gluetun.service publishes qBittorrent WebUI on
+      10.2.20.113:8080, SABnzbd on 10.2.20.113:8085, and Gluetun WebUI on
+      10.2.20.113:3001. If Gluetun is offline, qBittorrent and SABnzbd
+      networking are unavailable. Gluetun state is stored in
       /srv/appsdata/gluetun and is included in appsdata backups.
 
       Backup repository:
@@ -1211,6 +1246,7 @@ EOF
         systemctl start appsdata-restore-check.service
         systemctl is-active podman-media-gluetun.service
         systemctl is-active podman-media-qbittorrent.service
+        systemctl is-active podman-media-sabnzbd.service
         systemctl is-active podman-media-gluetun-webui.service
         systemctl status appsdata-backup.service appsdata-restore-check.service
 
@@ -1252,9 +1288,9 @@ EOF
       First-run setup is available at http://10.2.20.113:8096/web/index.html#!/wizardstart.html.
       Complete it in a browser before connecting native Jellyfin clients.
       Audiobookshelf is available at http://10.2.20.113:8000, Kavita is
-      available at http://10.2.20.113:5000, Readarr is available at
-      http://10.2.20.113:8787, and qBittorrent is available through
-      MediaVM Gluetun at http://10.2.20.113:8080, and the MediaVM Gluetun WebUI
+      available at http://10.2.20.113:5000, qBittorrent is available through
+      MediaVM Gluetun at http://10.2.20.113:8080, SABnzbd is available through
+      MediaVM Gluetun at http://10.2.20.113:8085, and the MediaVM Gluetun WebUI
       is available at http://10.2.20.113:3001 and, through Gateway Traefik,
       http://media-gluetun.h.
     '';

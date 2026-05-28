@@ -91,9 +91,9 @@ on the LAN as a separate port.
 
 The MediaVM Gluetun WebUI runs on `media-vm` as
 `podman-media-gluetun-webui.service`, shares the `media-gluetun` network
-namespace used by qBittorrent, and is available through Gateway Traefik at
+namespace used by qBittorrent and SABnzbd, and is available through Gateway Traefik at
 `http://media-gluetun.h/`. Gateway only routes to its MediaVM LAN backend on
-`10.2.20.113:3001`; the VPN container and qBittorrent kill switch still live on
+`10.2.20.113:3001`; the VPN container and downloader kill switch still live on
 `media-vm`.
 
 The netboot.xyz container runs as `podman-netbootxyz.service`. Its web
@@ -137,7 +137,6 @@ Traefik ingress routes are declared explicitly for:
 - `sonarr.h`
 - `radarr.h`
 - `prowlarr.h`
-- `readarr.h`
 - `bazarr.h`
 - `qbittorrent.h`
 - `media-gluetun.h`

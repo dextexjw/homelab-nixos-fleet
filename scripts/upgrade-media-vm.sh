@@ -13,12 +13,11 @@ KEY_SERVICES=(
   radarr
   sonarr
   prowlarr
-  readarr
   bazarr
   podman-media-gluetun
   podman-media-qbittorrent
+  podman-media-sabnzbd
   podman-media-gluetun-webui
-  sabnzbd
   seerr
   flaresolverr
 )
@@ -126,7 +125,6 @@ phase_verify_media_vm() {
   local hostname_output static_hostname transient_hostname service
 
   need ssh
-  need curl
 
   printf 'Checking %s hostname state...\n' "$HOST"
   if ! hostname_output="$(ssh_media_vm 'hostnamectl --static; hostnamectl --transient')"; then
@@ -150,9 +148,6 @@ phase_verify_media_vm() {
   for service in "${KEY_SERVICES[@]}"; do
     ssh_media_vm "systemctl is-active --quiet '$service.service'" || die "$service.service is not active"
   done
-
-  printf 'Checking Readarr HTTP endpoint...\n'
-  curl -fsS "http://$HOST_IP:8787/" >/dev/null || die "Readarr is not reachable on $HOST_IP:8787"
 }
 
 run_phase() {

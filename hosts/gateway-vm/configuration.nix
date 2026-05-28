@@ -247,12 +247,6 @@ in
             icon = "radarr.png";
           }
           {
-            name = "Readarr";
-            description = "Book management\nhttp://${hosts.media-vm.ip}:8787";
-            href = "http://readarr.${serviceDomain}/";
-            icon = "readarr.png";
-          }
-          {
             name = "Prowlarr";
             description = "Indexer management\nhttp://${hosts.media-vm.ip}:9696";
             href = "http://prowlarr.${serviceDomain}/";
@@ -272,7 +266,7 @@ in
           }
           {
             name = "Media Gluetun";
-            description = "qBittorrent VPN status\nhttp://${hosts.media-vm.ip}:3001";
+            description = "Download client VPN status\nhttp://${hosts.media-vm.ip}:3001";
             href = "http://media-gluetun.${serviceDomain}/";
             icon = "gluetun.png";
             siteMonitor = "http://${hosts.media-vm.ip}:3001/api/health";
@@ -416,7 +410,7 @@ in
         url = "http://${hosts.media-vm.ip}:8080";
       };
       media-gluetun = {
-        description = "MediaVM Gluetun WebUI for qBittorrent";
+        description = "MediaVM Gluetun WebUI for download clients";
         host = "media-gluetun.${serviceDomain}";
         url = "http://${hosts.media-vm.ip}:3001";
       };
@@ -424,11 +418,6 @@ in
         description = "Radarr movie management";
         host = "radarr.${serviceDomain}";
         url = "http://${hosts.media-vm.ip}:7878";
-      };
-      readarr = {
-        description = "Readarr book management";
-        host = "readarr.${serviceDomain}";
-        url = "http://${hosts.media-vm.ip}:8787";
       };
       sabnzbd = {
         description = "SABnzbd downloads";
@@ -529,7 +518,6 @@ in
       http://kavita.${serviceDomain}
       http://sonarr.${serviceDomain}
       http://radarr.${serviceDomain}
-      http://readarr.${serviceDomain}
       http://prowlarr.${serviceDomain}
       http://bazarr.${serviceDomain}
       http://qbittorrent.${serviceDomain}

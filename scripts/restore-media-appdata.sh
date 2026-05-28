@@ -6,7 +6,7 @@ HOST="media-vm"
 REPOSITORY="/mnt/backups/restic/appdata/media-stack-vm"
 SOURCE="/srv/appsdata"
 TAG="appsdata"
-SERVICES="jellyfin audiobookshelf kavita radarr sonarr prowlarr readarr bazarr podman-media-gluetun-webui podman-media-qbittorrent podman-media-gluetun sabnzbd seerr flaresolverr"
+SERVICES="jellyfin audiobookshelf kavita radarr sonarr prowlarr bazarr podman-media-gluetun-webui podman-media-qbittorrent podman-media-sabnzbd podman-media-gluetun seerr flaresolverr"
 SNAPSHOT="${1:-}"
 
 die() {
@@ -124,7 +124,6 @@ if [ -d "\$source_path/prowlarr" ]; then
   chown nobody:nogroup "\$source_path/prowlarr"
   chmod 0700 "\$source_path/prowlarr"
 fi
-[ -d "\$source_path/readarr" ] && chown -R readarr:media "\$source_path/readarr"
 [ -d "\$source_path/bazarr" ] && chown -R bazarr:media "\$source_path/bazarr"
 [ -d "\$source_path/qbittorrent" ] && chown -R qbittorrent:media "\$source_path/qbittorrent"
 [ -d "\$source_path/gluetun" ] && chown -R root:media "\$source_path/gluetun"
