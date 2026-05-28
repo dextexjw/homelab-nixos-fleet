@@ -6,7 +6,7 @@ HOST="media-vm"
 REPOSITORY="/mnt/backups/restic/appdata/media-stack-vm"
 SOURCE="/srv/appsdata"
 TAG="appsdata"
-SERVICES="jellyfin audiobookshelf kavita radarr sonarr prowlarr bazarr qbittorrent sabnzbd seerr flaresolverr"
+SERVICES="jellyfin audiobookshelf kavita radarr sonarr prowlarr bazarr podman-media-gluetun-webui podman-media-qbittorrent podman-media-gluetun sabnzbd seerr flaresolverr"
 SNAPSHOT="${1:-}"
 
 die() {
@@ -126,6 +126,7 @@ if [ -d "\$source_path/prowlarr" ]; then
 fi
 [ -d "\$source_path/bazarr" ] && chown -R bazarr:media "\$source_path/bazarr"
 [ -d "\$source_path/qbittorrent" ] && chown -R qbittorrent:media "\$source_path/qbittorrent"
+[ -d "\$source_path/gluetun" ] && chown -R root:media "\$source_path/gluetun"
 [ -d "\$source_path/sabnzbd" ] && chown -R sabnzbd:media "\$source_path/sabnzbd"
 if [ -d "\$source_path/jellyseerr" ] && [ ! -e "\$source_path/seerr" ]; then
   mv "\$source_path/jellyseerr" "\$source_path/seerr"
@@ -137,6 +138,7 @@ find "\$source_path" -type f \( -name '*.pid' -o -name 'plexmediaserver.pid' \) 
 
 echo 'Reapplying declared directories and restarting media services...'
 systemd-tmpfiles --create
+systemctl restart media-gluetun-control-auth-config.service
 systemctl restart kavita-token-key.service
 systemctl start \$services
 systemctl start appsdata-backup.timer

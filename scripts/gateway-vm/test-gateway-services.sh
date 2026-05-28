@@ -141,6 +141,7 @@ check_dns_record gluetun.h "$HOST_IP"
 check_dns_record homepage.h "$HOST_IP"
 check_dns_record jellyfin.h "$HOST_IP"
 check_dns_record kavita.h "$HOST_IP"
+check_dns_record media-gluetun.h "$HOST_IP"
 check_dns_record seerr.h "$HOST_IP"
 if [[ "$CHECK_NETBOOTXYZ" == 1 ]]; then
   check_dns_record netbootxyz.h "$HOST_IP"
@@ -156,6 +157,7 @@ wait_for_remote "Traefik metrics endpoint failed" "tmp=\$(mktemp); trap 'rm -f \
 wait_for_remote "Homepage direct endpoint failed" "curl -fsS http://${HOST_IP}:8082/ >/dev/null"
 wait_for_remote "Homepage Traefik route failed" "curl -fsS -H 'Host: homepage.h' http://127.0.0.1/ >/dev/null"
 wait_for_remote "Gluetun WebUI route failed" "curl -fsS -H 'Host: gluetun.h' http://127.0.0.1/api/health >/dev/null"
+wait_for_remote "MediaVM Gluetun WebUI route failed" "curl -fsS -H 'Host: media-gluetun.h' http://127.0.0.1/api/health >/dev/null"
 wait_for_remote "Jellyfin route failed" "curl -fsS -o /dev/null -H 'Host: jellyfin.h' http://127.0.0.1/"
 wait_for_remote "Kavita route failed" "curl -fsS -o /dev/null -H 'Host: kavita.h' http://127.0.0.1/"
 wait_for_remote "Seerr route failed" "curl -fsS -o /dev/null -H 'Host: seerr.h' http://127.0.0.1/"
@@ -172,7 +174,7 @@ else
 fi
 
 printf 'Checking Homepage generated config...\n'
-homepage_checks="grep -Fq 'target: _blank' /etc/homepage-dashboard/settings.yaml && grep -Fq 'homepage.h' /etc/homepage-dashboard/services.yaml && grep -Fq '10.2.20.112:8082' /etc/homepage-dashboard/services.yaml && grep -Fq 'jellyfin.h' /etc/homepage-dashboard/services.yaml && grep -Fq '10.2.20.113:8096' /etc/homepage-dashboard/services.yaml && grep -Fq 'seerr.h' /etc/homepage-dashboard/services.yaml && grep -Fq '10.2.20.113:5055' /etc/homepage-dashboard/services.yaml"
+homepage_checks="grep -Fq 'target: _blank' /etc/homepage-dashboard/settings.yaml && grep -Fq 'homepage.h' /etc/homepage-dashboard/services.yaml && grep -Fq '10.2.20.112:8082' /etc/homepage-dashboard/services.yaml && grep -Fq 'jellyfin.h' /etc/homepage-dashboard/services.yaml && grep -Fq '10.2.20.113:8096' /etc/homepage-dashboard/services.yaml && grep -Fq 'media-gluetun.h' /etc/homepage-dashboard/services.yaml && grep -Fq '10.2.20.113:3001/api/health' /etc/homepage-dashboard/services.yaml && grep -Fq 'seerr.h' /etc/homepage-dashboard/services.yaml && grep -Fq '10.2.20.113:5055' /etc/homepage-dashboard/services.yaml"
 if [[ "$CHECK_NETBOOTXYZ" == 1 ]]; then
   homepage_checks="$homepage_checks && grep -Fq 'netbootxyz.h' /etc/homepage-dashboard/services.yaml"
 fi

@@ -11,6 +11,7 @@ with lib;
 let
   cfg = config.fleet.media.stack;
   appdata = cfg.appdataRoot;
+  gluetunCfg = cfg.gluetun;
   mediaRoot = cfg.mediaRoot;
   smbCredentialsFile =
     if cfg.secrets.enable then
@@ -39,6 +40,24 @@ let
       config.sops.secrets.qbittorrent-webui-username.path
     else
       "/run/secrets/qbittorrent-webui-username";
+  mediaGluetunControlApiKeyFile =
+    if cfg.secrets.enable then
+      config.sops.secrets.media-gluetun-control-api-key.path
+    else
+      "/run/secrets/media-gluetun-control-api-key";
+  mediaGluetunOpenvpnPasswordFile =
+    if cfg.secrets.enable then
+      config.sops.secrets.media-gluetun-openvpn-password.path
+    else
+      "/run/secrets/media-gluetun-openvpn-password";
+  mediaGluetunOpenvpnUsernameFile =
+    if cfg.secrets.enable then
+      config.sops.secrets.media-gluetun-openvpn-username.path
+    else
+      "/run/secrets/media-gluetun-openvpn-username";
+  gluetunControlAuthConfigDir = "/run/media-gluetun-control-server";
+  gluetunControlAuthConfigFile = "${gluetunControlAuthConfigDir}/config.toml";
+  gluetunControlWebUiEnvFile = "${gluetunControlAuthConfigDir}/webui.env";
   systemdMountOptions = filter (
     option:
     option != "_netdev"
@@ -46,6 +65,9 @@ let
     && option != "nofail"
     && !(hasPrefix "x-systemd." option)
   ) cfg.smb.mountOptions;
+  gluetunInputPorts =
+    optional gluetunCfg.qbittorrentWebUi.enable cfg.ports.qbittorrent
+    ++ optional gluetunCfg.webUi.enable gluetunCfg.webUi.port;
 
   appsdataDirs = [
     "${appdata}"
@@ -53,6 +75,7 @@ let
     "${appdata}/audiobookshelf/config"
     "${appdata}/audiobookshelf/metadata"
     "${appdata}/flaresolverr"
+    "${appdata}/gluetun"
     "${appdata}/monitoring"
     "${appdata}/qbittorrent"
     "${appdata}/sabnzbd"
@@ -79,8 +102,10 @@ let
     import grp
     import tempfile
 
-    config_dir = pathlib.Path(${builtins.toJSON "${appdata}/qbittorrent/qBittorrent/config"})
+    config_dir = pathlib.Path(${builtins.toJSON "${appdata}/qbittorrent/qBittorrent"})
     config_file = config_dir / "qBittorrent.conf"
+    legacy_config_dir = config_dir / "config"
+    legacy_config_file = legacy_config_dir / "qBittorrent.conf"
     username_file = pathlib.Path(${builtins.toJSON qbittorrentWebuiUsernameFile})
     password_file = pathlib.Path(${builtins.toJSON qbittorrentWebuiPasswordFile})
 
@@ -114,21 +139,26 @@ let
     """
 
     config_dir.mkdir(parents=True, exist_ok=True)
+    legacy_config_dir.mkdir(parents=True, exist_ok=True)
     uid = pwd.getpwnam("qbittorrent").pw_uid
     gid = grp.getgrnam("media").gr_gid
 
-    fd, tmp_name = tempfile.mkstemp(prefix=".qBittorrent.conf.", dir=config_dir)
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as tmp:
-            tmp.write(content)
-        os.chown(tmp_name, uid, gid)
-        os.chmod(tmp_name, 0o600)
-        os.replace(tmp_name, config_file)
-    finally:
+    def write_config(path):
+        fd, tmp_name = tempfile.mkstemp(prefix=".qBittorrent.conf.", dir=path.parent)
         try:
-            os.unlink(tmp_name)
-        except FileNotFoundError:
-            pass
+            with os.fdopen(fd, "w", encoding="utf-8") as tmp:
+                tmp.write(content)
+            os.chown(tmp_name, uid, gid)
+            os.chmod(tmp_name, 0o600)
+            os.replace(tmp_name, path)
+        finally:
+            try:
+                os.unlink(tmp_name)
+            except FileNotFoundError:
+                pass
+
+    write_config(config_file)
+    write_config(legacy_config_file)
     PY
   '';
 in
@@ -210,6 +240,120 @@ in
       description = "Optional URL Jellyfin advertises to clients during auto-discovery.";
     };
 
+    qbittorrent.image = mkOption {
+      type = types.str;
+      default = "lscr.io/linuxserver/qbittorrent@sha256:715d2bfbcf1cd3d734cbbd4fbd599eb7ea0642eaa079a372dd0d343f59516700";
+      description = "Pinned qBittorrent OCI image reference.";
+    };
+
+    gluetun = {
+      enable = mkOption {
+        type = types.bool;
+        default = true;
+        description = "Route MediaVM qBittorrent through a dedicated Gluetun container.";
+      };
+
+      bindAddress = mkOption {
+        type = types.str;
+        default = "0.0.0.0";
+        description = "Host address used for MediaVM Gluetun-published service ports.";
+      };
+
+      controlServer = {
+        apiKeyFile = mkOption {
+          type = types.path;
+          default = mediaGluetunControlApiKeyFile;
+          description = "Runtime secret file containing the MediaVM Gluetun control server API key.";
+        };
+
+        port = mkOption {
+          type = types.port;
+          default = 8000;
+          description = "Container-only Gluetun HTTP control server port.";
+        };
+      };
+
+      image = mkOption {
+        type = types.str;
+        default = "ghcr.io/qdm12/gluetun@sha256:2f33c71e5e164fcd51a962cb950134df25155593edf0c3e1201f888d027049b4";
+        description = "Pinned Gluetun OCI image reference.";
+      };
+
+      openvpnPasswordFile = mkOption {
+        type = types.path;
+        default = mediaGluetunOpenvpnPasswordFile;
+        description = "Runtime secret file containing the MediaVM PIA OpenVPN password.";
+      };
+
+      openvpnUsernameFile = mkOption {
+        type = types.path;
+        default = mediaGluetunOpenvpnUsernameFile;
+        description = "Runtime secret file containing the MediaVM PIA OpenVPN username.";
+      };
+
+      provider = mkOption {
+        type = types.str;
+        default = "private internet access";
+        description = "Gluetun VPN service provider name.";
+      };
+
+      qbittorrentWebUi.enable = mkOption {
+        type = types.bool;
+        default = true;
+        description = "Publish qBittorrent WebUI through the MediaVM Gluetun container.";
+      };
+
+      stateDir = mkOption {
+        type = types.path;
+        default = "/srv/appsdata/gluetun";
+        description = "Persistent MediaVM Gluetun state directory.";
+      };
+
+      vpnPortForwarding = mkOption {
+        type = types.bool;
+        default = false;
+        description = "Enable PIA VPN port forwarding.";
+      };
+
+      vpnType = mkOption {
+        type = types.enum [ "openvpn" ];
+        default = "openvpn";
+        description = "Gluetun VPN protocol.";
+      };
+
+      webUi = {
+        enable = mkOption {
+          type = types.bool;
+          default = true;
+          description = "Run the MediaVM Gluetun WebUI sidecar container.";
+        };
+
+        image = mkOption {
+          type = types.str;
+          default = "docker.io/scuzza/gluetun-webui@sha256:7f38c188ada9b21b585dcb28175c3d74e64c12d959bd979b7f106e4240f6c807";
+          description = "Pinned Gluetun WebUI OCI image reference.";
+        };
+
+        name = mkOption {
+          type = types.str;
+          default = "MediaVM Gluetun";
+          description = "Display name for the MediaVM Gluetun instance.";
+        };
+
+        port = mkOption {
+          type = types.port;
+          default = 3001;
+          description = "Host and container port for the MediaVM Gluetun WebUI.";
+        };
+
+        trustProxy = mkOption {
+          type = types.bool;
+          default = false;
+          description = "Allow Gluetun WebUI to trust reverse proxy forwarding headers.";
+        };
+      };
+    };
+
     smb = {
       mediaDevice = mkOption {
         type = types.str;
@@ -272,18 +416,35 @@ in
   # ============================================================================
 
   config = mkIf cfg.enable {
+    assertions = [
+      {
+        assertion = gluetunCfg.enable;
+        message = "fleet.media.stack.gluetun.enable must stay true because qBittorrent is routed through MediaVM Gluetun.";
+      }
+    ];
+
     # --------------------------------------------------------------------------
     # USERS, GROUPS, AND DIRECTORIES
     # --------------------------------------------------------------------------
 
     boot.supportedFilesystems.cifs = true;
+    boot.kernelModules = [ "tun" ];
 
-    users.groups.media = { };
+    users.groups.media = {
+      gid = 992;
+    };
 
     users.users.media = {
       isSystemUser = true;
       group = "media";
       home = appdata;
+    };
+
+    users.users.qbittorrent = {
+      isSystemUser = true;
+      uid = 988;
+      group = "media";
+      home = "${appdata}/qbittorrent";
     };
 
     users.users.seerr = {
@@ -309,7 +470,6 @@ in
       {
         where = toString mediaRoot;
         wantedBy = [ "multi-user.target" ];
-        automountConfig.TimeoutIdleSec = "60s";
       }
     ];
 
@@ -426,14 +586,6 @@ in
       listenPort = cfg.ports.bazarr;
     };
 
-    services.qbittorrent = {
-      enable = true;
-      user = "qbittorrent";
-      group = "media";
-      profileDir = "${appdata}/qbittorrent";
-      webuiPort = cfg.ports.qbittorrent;
-    };
-
     services.sabnzbd = {
       enable = true;
       user = "sabnzbd";
@@ -450,6 +602,106 @@ in
     services.flaresolverr = {
       enable = true;
       port = 8191;
+    };
+
+    virtualisation.oci-containers.backend = "podman";
+    virtualisation.oci-containers.containers = {
+      media-gluetun = {
+        image = gluetunCfg.image;
+        pull = "missing";
+
+        capabilities.NET_ADMIN = true;
+        devices = [
+          "/dev/net/tun:/dev/net/tun"
+        ];
+
+        environment = {
+          FIREWALL_OUTBOUND_SUBNETS = "10.2.20.0/24";
+          HTTP_CONTROL_SERVER_ADDRESS = ":${toString gluetunCfg.controlServer.port}";
+          HTTP_CONTROL_SERVER_AUTH_CONFIG_FILEPATH = "/run/media-gluetun-control-server/config.toml";
+          HTTPPROXY = "off";
+          OPENVPN_PASSWORD_SECRETFILE = "/run/secrets/openvpn_password";
+          OPENVPN_USER_SECRETFILE = "/run/secrets/openvpn_user";
+          TZ = config.time.timeZone;
+          VPN_PORT_FORWARDING = if gluetunCfg.vpnPortForwarding then "on" else "off";
+          VPN_SERVICE_PROVIDER = gluetunCfg.provider;
+          VPN_TYPE = gluetunCfg.vpnType;
+        } // optionalAttrs (gluetunInputPorts != [ ]) {
+          FIREWALL_INPUT_PORTS = concatMapStringsSep "," toString gluetunInputPorts;
+        };
+
+        ports =
+          optionals gluetunCfg.qbittorrentWebUi.enable [
+            "${gluetunCfg.bindAddress}:${toString cfg.ports.qbittorrent}:${toString cfg.ports.qbittorrent}/tcp"
+          ]
+          ++ optionals gluetunCfg.webUi.enable [
+            "${gluetunCfg.bindAddress}:${toString gluetunCfg.webUi.port}:${toString gluetunCfg.webUi.port}/tcp"
+          ];
+
+        podman.sdnotify = "healthy";
+
+        extraOptions = [
+          "--health-cmd=/gluetun-entrypoint healthcheck"
+          "--health-interval=5s"
+          "--health-retries=1"
+          "--health-start-period=10s"
+          "--health-timeout=5s"
+        ];
+
+        volumes = [
+          "${gluetunCfg.stateDir}:/gluetun"
+          "${gluetunCfg.openvpnUsernameFile}:/run/secrets/openvpn_user:ro"
+          "${gluetunCfg.openvpnPasswordFile}:/run/secrets/openvpn_password:ro"
+          "${gluetunControlAuthConfigFile}:/run/media-gluetun-control-server/config.toml:ro"
+        ];
+      };
+
+      media-qbittorrent = {
+        image = cfg.qbittorrent.image;
+        pull = "missing";
+
+        dependsOn = [ "media-gluetun" ];
+
+        environment = {
+          PGID = toString config.users.groups.media.gid;
+          PUID = toString config.users.users.qbittorrent.uid;
+          TZ = config.time.timeZone;
+          UMASK = "0077";
+          WEBUI_PORT = toString cfg.ports.qbittorrent;
+        };
+
+        volumes = [
+          "${appdata}/qbittorrent:/config"
+          "${mediaRoot}:${mediaRoot}"
+        ];
+
+        extraOptions = [
+          "--network=container:media-gluetun"
+        ];
+      };
+
+      media-gluetun-webui = mkIf gluetunCfg.webUi.enable {
+        image = gluetunCfg.webUi.image;
+        pull = "missing";
+
+        dependsOn = [ "media-gluetun" ];
+
+        environment = {
+          GLUETUN_CONTROL_URL = "http://127.0.0.1:${toString gluetunCfg.controlServer.port}";
+          GLUETUN_NAME = gluetunCfg.webUi.name;
+          PORT = toString gluetunCfg.webUi.port;
+          TRUST_PROXY = if gluetunCfg.webUi.trustProxy then "true" else "false";
+        };
+        environmentFiles = [ gluetunControlWebUiEnvFile ];
+
+        extraOptions = [
+          "--cap-drop=ALL"
+          "--network=container:media-gluetun"
+          "--read-only"
+          "--security-opt=no-new-privileges"
+          "--tmpfs=/tmp"
+        ];
+      };
     };
 
     systemd.services = {
@@ -511,12 +763,99 @@ in
       prowlarr.after = [ "${utils.escapeSystemdPath "/var/lib/private/prowlarr"}.mount" ];
       bazarr.requires = [ "${utils.escapeSystemdPath mediaRoot}.mount" ];
       bazarr.after = [ "${utils.escapeSystemdPath mediaRoot}.mount" ];
-      qbittorrent.requires = [ "${utils.escapeSystemdPath mediaRoot}.mount" ];
-      qbittorrent.after = [ "${utils.escapeSystemdPath mediaRoot}.mount" ];
-      qbittorrent.serviceConfig.ExecStartPre = [ "+${qbittorrentConfigScript}" ];
-      qbittorrent.serviceConfig.UMask = "0077";
       sabnzbd.requires = [ "${utils.escapeSystemdPath mediaRoot}.mount" ];
       sabnzbd.after = [ "${utils.escapeSystemdPath mediaRoot}.mount" ];
+
+      media-gluetun-control-auth-config = {
+        description = "Generate MediaVM Gluetun control server authentication config";
+        before = [ "podman-media-gluetun.service" ];
+        path = [
+          pkgs.coreutils
+        ];
+        serviceConfig = {
+          RemainAfterExit = true;
+          Type = "oneshot";
+        };
+        script = ''
+          set -euo pipefail
+
+          install -d -m 0700 -o root -g root '${gluetunControlAuthConfigDir}'
+
+          api_key="$(tr -d '\r\n' < '${gluetunCfg.controlServer.apiKeyFile}')"
+          if [ -z "$api_key" ]; then
+            echo '${gluetunCfg.controlServer.apiKeyFile} is empty; refusing to generate MediaVM Gluetun control auth config' >&2
+            exit 1
+          fi
+
+          tmp="$(mktemp '${gluetunControlAuthConfigDir}/config.toml.XXXXXX')"
+          chmod 0400 "$tmp"
+          cat >"$tmp" <<EOF
+[[roles]]
+name = "media-gluetun-webui"
+routes = [
+  "GET /v1/dns/status",
+  "GET /v1/portforward",
+  "GET /v1/publicip/ip",
+  "GET /v1/vpn/settings",
+  "GET /v1/vpn/status",
+  "PUT /v1/vpn/status"
+]
+auth = "apikey"
+apikey = "$api_key"
+EOF
+
+          install -m 0400 -o root -g root "$tmp" '${gluetunControlAuthConfigFile}'
+          rm -f "$tmp"
+
+          env_tmp="$(mktemp '${gluetunControlAuthConfigDir}/webui.env.XXXXXX')"
+          chmod 0400 "$env_tmp"
+          printf 'GLUETUN_API_KEY=%s\n' "$api_key" >"$env_tmp"
+          install -m 0400 -o root -g root "$env_tmp" '${gluetunControlWebUiEnvFile}'
+          rm -f "$env_tmp"
+        '';
+      };
+
+      podman-media-gluetun = {
+        after = [
+          "media-gluetun-control-auth-config.service"
+          "network-online.target"
+        ];
+        requires = [ "media-gluetun-control-auth-config.service" ];
+        wants = [ "network-online.target" ];
+        serviceConfig.RestartSec = "30s";
+      };
+
+      podman-media-qbittorrent = {
+        after = [
+          "podman-media-gluetun.service"
+          "${utils.escapeSystemdPath mediaRoot}.mount"
+        ];
+        bindsTo = [ "podman-media-gluetun.service" ];
+        partOf = [ "podman-media-gluetun.service" ];
+        preStart = "${qbittorrentConfigScript}";
+        requires = [
+          "podman-media-gluetun.service"
+          "${utils.escapeSystemdPath mediaRoot}.mount"
+        ];
+        serviceConfig = {
+          RestartSec = "30s";
+          UMask = "0077";
+        };
+      };
+
+      podman-media-gluetun-webui = mkIf gluetunCfg.webUi.enable {
+        after = [
+          "media-gluetun-control-auth-config.service"
+          "podman-media-gluetun.service"
+        ];
+        bindsTo = [ "podman-media-gluetun.service" ];
+        partOf = [ "podman-media-gluetun.service" ];
+        requires = [
+          "media-gluetun-control-auth-config.service"
+          "podman-media-gluetun.service"
+        ];
+        serviceConfig.RestartSec = "30s";
+      };
 
       sabnzbd = {
         preStart = ''
@@ -755,7 +1094,7 @@ in
       cfg.ports.sabnzbd
       cfg.ports.seerr
       cfg.ports.sonarr
-    ];
+    ] ++ optional gluetunCfg.webUi.enable gluetunCfg.webUi.port;
 
     # --------------------------------------------------------------------------
     # RECOVERY NOTES ON THE HOST
@@ -766,8 +1105,8 @@ in
       ======================
 
       Restore /srv/appsdata after reinstalling this NixOS host, before first
-      use of Jellyfin, Audiobookshelf, Kavita, ARR apps, qBittorrent, SABnzbd,
-      or Seerr. The first activation creates /run/secrets/restic-password,
+      use of Jellyfin, Audiobookshelf, Kavita, ARR apps, qBittorrent, Gluetun,
+      SABnzbd, or Seerr. The first activation creates /run/secrets/restic-password,
       /mnt/backups, Restic, users/groups, and service units needed for restore.
 
       Media files under /mnt/media are mounted from SMB and are not included in
@@ -775,6 +1114,13 @@ in
 
       Seerr uses /srv/appsdata/seerr. On deploy or restore, legacy
       /srv/appsdata/jellyseerr data is moved there when the new path is empty.
+
+      qBittorrent runs as podman-media-qbittorrent.service in the
+      media-gluetun container network namespace. It has no host-published ports
+      of its own; podman-media-gluetun.service publishes qBittorrent WebUI on
+      10.2.20.113:8080 and Gluetun WebUI on 10.2.20.113:3001. If Gluetun is
+      offline, qBittorrent networking is unavailable. Gluetun state is stored in
+      /srv/appsdata/gluetun and is included in appsdata backups.
 
       Backup repository:
         /mnt/backups/restic/appdata/media-stack-vm
@@ -786,6 +1132,9 @@ in
         mount /mnt/backups
         systemctl start appsdata-backup.service
         systemctl start appsdata-restore-check.service
+        systemctl is-active podman-media-gluetun.service
+        systemctl is-active podman-media-qbittorrent.service
+        systemctl is-active podman-media-gluetun-webui.service
         systemctl status appsdata-backup.service appsdata-restore-check.service
 
       Restore test target:
@@ -811,7 +1160,8 @@ in
         4. Move existing /srv/appsdata aside, then restore the chosen snapshot
            to / with restic --verify.
         5. Normalize ownership for rebuilt users and run systemd-tmpfiles --create.
-        6. Restart kavita-token-key.service, media services, appsdata-backup.timer,
+        6. Restart media-gluetun-control-auth-config.service,
+           kavita-token-key.service, media services, appsdata-backup.timer,
            and appsdata-restore-check.service.
 
       Jellyfin kids access is configured inside Jellyfin after first setup:
@@ -822,7 +1172,10 @@ in
       First-run setup is available at http://10.2.20.113:8096/web/index.html#!/wizardstart.html.
       Complete it in a browser before connecting native Jellyfin clients.
       Audiobookshelf is available at http://10.2.20.113:8000, and Kavita is
-      available at http://10.2.20.113:5000.
+      available at http://10.2.20.113:5000. qBittorrent is available through
+      MediaVM Gluetun at http://10.2.20.113:8080, and the MediaVM Gluetun WebUI
+      is available at http://10.2.20.113:3001 and, through Gateway Traefik,
+      http://media-gluetun.h.
     '';
   };
 }

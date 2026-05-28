@@ -30,6 +30,8 @@ let
       inherit (service) description href;
     } // optionalAttrs (service.icon != null) {
       inherit (service) icon;
+    } // optionalAttrs (service.siteMonitor != null) {
+      inherit (service) siteMonitor;
     };
   };
 
@@ -128,6 +130,13 @@ in
                       default = null;
                       description = "Optional Homepage icon reference.";
                       example = "traefik.png";
+                    };
+
+                    siteMonitor = mkOption {
+                      type = types.nullOr types.str;
+                      default = null;
+                      description = "Optional URL Homepage should monitor for this service card.";
+                      example = "http://traefik.h/dashboard/";
                     };
                   };
                 }

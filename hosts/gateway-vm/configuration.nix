@@ -265,6 +265,13 @@ in
             icon = "qbittorrent.png";
           }
           {
+            name = "Media Gluetun";
+            description = "qBittorrent VPN status\nhttp://${hosts.media-vm.ip}:3001";
+            href = "http://media-gluetun.${serviceDomain}/";
+            icon = "gluetun.png";
+            siteMonitor = "http://${hosts.media-vm.ip}:3001/api/health";
+          }
+          {
             name = "SABnzbd";
             description = "http://${hosts.media-vm.ip}:8085";
             href = "http://sabnzbd.${serviceDomain}/";
@@ -402,6 +409,11 @@ in
         host = "qbittorrent.${serviceDomain}";
         url = "http://${hosts.media-vm.ip}:8080";
       };
+      media-gluetun = {
+        description = "MediaVM Gluetun WebUI for qBittorrent";
+        host = "media-gluetun.${serviceDomain}";
+        url = "http://${hosts.media-vm.ip}:3001";
+      };
       radarr = {
         description = "Radarr movie management";
         host = "radarr.${serviceDomain}";
@@ -509,6 +521,7 @@ in
       http://prowlarr.${serviceDomain}
       http://bazarr.${serviceDomain}
       http://qbittorrent.${serviceDomain}
+      http://media-gluetun.${serviceDomain}
       http://sabnzbd.${serviceDomain}
       http://seerr.${serviceDomain}
 

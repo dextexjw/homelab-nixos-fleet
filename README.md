@@ -6,7 +6,7 @@ flake and deployed with Colmena.
 The current fleet is intentionally small:
 
 - `gateway-vm` runs Traefik ingress, Technitium DNS, netboot.xyz, NetBird, and Tailscale.
-- `media-vm` runs Jellyfin, Audiobookshelf, Kavita, ARR apps, downloads, SMB media mounts, and appdata backups.
+- `media-vm` runs Jellyfin, Audiobookshelf, Kavita, ARR apps, Gluetun-gated downloads, SMB media mounts, and appdata backups.
 
 Treat this repo as the source of truth for hosts, services, secrets workflow,
 and recovery notes. The fleet-wide service standard is captured in
@@ -18,7 +18,7 @@ should follow that blueprint before being treated as production-ready.
 | Host | IP | Tags | Role | Runbook |
 | --- | --- | --- | --- | --- |
 | `gateway-vm` | `10.2.20.112` | `control-plane`, `gateway` | Ingress, DNS, netboot, mesh networking | [`hosts/gateway-vm/README.md`](hosts/gateway-vm/README.md) |
-| `media-vm` | `10.2.20.113` | `media` | Media services, downloads, SMB media, Restic appdata backups | [`hosts/media-vm/README.md`](hosts/media-vm/README.md) |
+| `media-vm` | `10.2.20.113` | `media` | Media services, Gluetun-gated downloads, SMB media, Restic appdata backups | [`hosts/media-vm/README.md`](hosts/media-vm/README.md) |
 
 Inventory lives in `hosts.nix`. Per-host configuration and host-specific
 runbooks live under `hosts/<name>/`.
